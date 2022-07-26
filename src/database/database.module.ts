@@ -30,7 +30,7 @@ import { UserBuyHistory } from './entities/UserBuyHistory';
       ssl:
         process.env.NODE_ENV == 'production'
           ? {
-              ca: fs.readFileSync('../../db.crt').toString(),
+              ca: fs.readFileSync(process.env.DB_CERT_PATH).toString(),
             }
           : false,
       entities: [
