@@ -102,11 +102,41 @@ export class Indexer {
     }
   }
 
-  async getLogs(fromBlock: number, toBlock: number | 'latest') {
-    return await this.web3.eth.getPastLogs({
-      fromBlock,
-      toBlock,
-      address: [process.env.MEDIA_CONTRACT, process.env.MARKET_CONTRACT],
-    });
+  async getLogs(fromBlockNumber: number, toBlock: number | 'latest') {
+    const chunkLimit = 4000;
+
+    const toBlockNumber =
+      toBlock === 'latest' ? await this.web3.eth.getBlockNumber() : +toBlock;
+    const totalBlocks = toBlockNumber - fromBlockNumber;
+
+    const chunks = [];
+
+    if (totalBlocks > chunkLimit) {
+      const count = Math.ceil(totalBlocks / chunkLimit);
+      let startingBlock = fromBlockNumber;
+
+      for (let index = 0; index < count; index++) {
+        const fromRangeBlock = startingBlock;
+        const toRangeBlock =
+          index === count - 1 ? toBlockNumber : startingBlock + chunkLimit;
+        startingBlock = toRangeBlock + 1;
+
+        chunks.push({ fromBlock: fromRangeBlock, toBlock: toRangeBlock });
+      }
+    } else {
+      chunks.push({ fromBlock: fromBlockNumber, toBlock: toBlockNumber });
+    }
+
+    const logs = [];
+
+    for (const chunk of chunks) {
+      const chunkLogs = await this.web3.eth.getPastLogs({
+        fromBlock: chunk.fromBlock,
+        toBlock: chunk.toBlock,
+        address: [process.env.MEDIA_CONTRACT, process.env.MARKET_CONTRACT],
+      });
+      logs.push(...chunkLogs);
+    }
+    return logs;
   }
 }
