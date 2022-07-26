@@ -1,5 +1,5 @@
+import fs from 'fs';
 import { ConfigModule } from '@nestjs/config';
-
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Module } from '@nestjs/common';
 import { User } from './entities/User';
@@ -27,6 +27,12 @@ import { UserBuyHistory } from './entities/UserBuyHistory';
       username: process.env.DB_USERNAME,
       password: process.env.DB_PASSWORD,
       database: process.env.DB_NAME,
+      ssl:
+        process.env.NODE_ENV == 'production'
+          ? {
+              ca: fs.readFileSync('../../db.crt').toString(),
+            }
+          : false,
       entities: [
         User,
         Nft,
