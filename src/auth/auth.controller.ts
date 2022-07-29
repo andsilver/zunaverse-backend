@@ -6,7 +6,10 @@ import {
   Post,
   UnauthorizedException,
 } from '@nestjs/common';
-import { recoverPersonalSignature } from 'eth-sig-util';
+import {
+  recoverPersonalSignature,
+  recoverTypedSignature_v4,
+} from 'eth-sig-util';
 import { bufferToHex } from 'ethereumjs-util';
 import Web3 from 'web3';
 import jwt from 'jsonwebtoken';
@@ -67,12 +70,37 @@ export class AuthController {
           message: 'User not found',
         });
       }
-      const msg = `${process.env.AUTH_SIGN_MESSAGE}: ${user.nonce}`;
-      const msgBufferHex = bufferToHex(Buffer.from(msg, 'utf8'));
-      const address = recoverPersonalSignature({
-        data: msgBufferHex,
+      // const msg = `${process.env.AUTH_SIGN_MESSAGE}: ${user.nonce}`;
+      // const msgBufferHex = bufferToHex(Buffer.from(msg, 'utf8'));
+      const address = recoverTypedSignature_v4({
+        data: {
+          domain: {
+            name: 'Zunaverse',
+            version: '1',
+          },
+          message: {
+            nonce: user.nonce,
+          },
+          primaryType: 'Message',
+          types: {
+            Message: [
+              {
+                name: 'nonce',
+                type: 'uint256',
+              },
+            ],
+            EIP712Domain: [
+              { name: 'name', type: 'string' },
+              { name: 'version', type: 'string' },
+            ],
+          },
+        } as any,
         sig: signature,
       });
+      // recoverPersonalSignature({
+      //   data: msgBufferHex,
+      //   sig: signature,
+      // });
 
       if (address.toLowerCase() !== pubKey.toLowerCase()) {
         throw new UnauthorizedException({
