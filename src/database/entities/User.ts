@@ -49,8 +49,8 @@ export class User extends PrimaryEntity {
   @Column({ type: 'boolean', default: false })
   verified = false;
 
-  @Column({ type: 'boolean', default: true })
-  featured = true;
+  @Column({ type: 'boolean', default: false })
+  featured = false;
 
   followers = 0;
   followings = 0;
