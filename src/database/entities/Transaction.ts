@@ -3,7 +3,7 @@ import { PrimaryEntity } from './primary-entity';
 
 @Entity('Transactions')
 export class Transaction extends PrimaryEntity {
-  @Column()
+  @Column({ type: 'real' })
   amount: number;
 
   @Column()
