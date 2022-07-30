@@ -42,10 +42,10 @@ export class Collection extends PrimaryEntity {
   @ManyToOne(() => User, (user) => user.collections)
   owner: User;
 
-  @Column({ default: 0 })
+  @Column({ default: 0, type: 'real' })
   totalVolume: number;
 
-  @Column({ default: 0 })
+  @Column({ default: 0, type: 'real' })
   floorPrice: number;
 
   @Column({ default: 0 })

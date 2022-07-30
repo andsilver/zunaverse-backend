@@ -1,5 +1,10 @@
 import { Column, Entity, Index, ManyToOne } from 'typeorm';
+import { Activity } from './Activity';
+import { Ask } from './Ask';
+import { Bid } from './Bid';
 import { Collection } from './Collection';
+import { Favorite } from './Favorite';
+import { Notification } from './Notification';
 import { PrimaryEntity } from './primary-entity';
 import { User } from './User';
 
@@ -63,4 +68,21 @@ export class Nft extends PrimaryEntity {
   favorited: boolean;
   favorites: number;
   collection: Collection;
+
+  async burn() {
+    await Bid.delete({ nftId: this.id });
+    await Activity.delete({ nft: this.id });
+    await Ask.delete({ nftId: this.id });
+    await Favorite.delete({ nftId: this.id });
+    await Notification.delete({ nftId: this.id });
+
+    if (this.collectionId) {
+      const collection = await Collection.findOneBy({
+        id: this.collectionId,
+      });
+      await collection.calculateMetrics();
+      await collection.calculateFloorPrice();
+    }
+    await this.remove();
+  }
 }

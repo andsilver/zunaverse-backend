@@ -521,4 +521,26 @@ export class NftController {
 
     return { success: true };
   }
+
+  @Delete(':id')
+  @UseGuards(AuthGuard)
+  async burnNFT(@Param('id') id: string, @CurrentUser() user: User) {
+    const nft = await Nft.findOneBy({ id: +id });
+
+    if (!nft) {
+      throw new UnprocessableEntityException('The nft does not exist');
+    }
+
+    if (nft.minted) {
+      throw new BadRequestException('The nft is minted on-chain');
+    }
+
+    if (user.id !== nft.ownerId) {
+      throw new ForbiddenException('Not the nft owner');
+    }
+
+    await nft.burn();
+
+    return { success: true };
+  }
 }

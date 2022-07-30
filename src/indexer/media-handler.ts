@@ -11,8 +11,6 @@ import { ACTIVITY_EVENTS, ZERO_ADDRESS } from '../consts';
 import { Activity } from '../database/entities/Activity';
 import { Bid } from 'src/database/entities/Bid';
 import { Collection } from 'src/database/entities/Collection';
-import { Favorite } from 'src/database/entities/Favorite';
-import { Notification } from 'src/database/entities/Notification';
 
 export class MediaHandler {
   contract: Contract;
@@ -78,20 +76,7 @@ export class MediaHandler {
       const nft = await Nft.findOneBy({ tokenId });
 
       if (to === ZERO_ADDRESS) {
-        await Bid.delete({ nftId: nft.id });
-        await Activity.delete({ nft: nft.id });
-        await Ask.delete({ nftId: nft.id });
-        await Favorite.delete({ nftId: nft.id });
-        await Notification.delete({ nftId: nft.id });
-
-        if (nft.collectionId) {
-          const collection = await Collection.findOneBy({
-            id: nft.collectionId,
-          });
-          await collection.calculateMetrics();
-          await collection.calculateFloorPrice();
-        }
-        await nft.remove();
+        await nft.burn();
         return;
       }
 

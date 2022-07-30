@@ -7,9 +7,9 @@ export class UserBuyHistory extends PrimaryEntity {
   @Index({ unique: true })
   userId: number;
 
-  @Column()
+  @Column({ type: 'real' })
   buyVolume: number;
 
-  @Column()
+  @Column({ type: 'real' })
   sellVolume: number;
 }
