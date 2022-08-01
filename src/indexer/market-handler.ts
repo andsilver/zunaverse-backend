@@ -10,7 +10,7 @@ import { Notification } from 'src/database/entities/Notification';
 import { User } from 'src/database/entities/User';
 import { Transaction } from 'src/database/entities/Transaction';
 import { Bid } from 'src/database/entities/Bid';
-import { ILike } from 'typeorm';
+import { ILike, In } from 'typeorm';
 import { Collection } from 'src/database/entities/Collection';
 
 export class MarketHandler {
@@ -66,9 +66,10 @@ export class MarketHandler {
       const { offer, seller, buyer } = eventData;
 
       const tokenId = Web3.utils.toHex(eventData.tokenId).toString();
+      const secondId = tokenId.slice(0, 2) + '0' + tokenId.slice(2);
 
       const nft = await Nft.findOne({
-        where: { tokenId },
+        where: { tokenId: In([tokenId, secondId]) },
         relations: ['owner'],
       });
 
@@ -149,9 +150,10 @@ export class MarketHandler {
       const { offer, seller, buyer } = eventData;
 
       const tokenId = Web3.utils.toHex(eventData.tokenId).toString();
+      const secondId = tokenId.slice(0, 2) + '0' + tokenId.slice(2);
 
       const nft = await Nft.findOne({
-        where: { tokenId },
+        where: { tokenId: In([tokenId, secondId]) },
         relations: ['owner'],
       });
 
