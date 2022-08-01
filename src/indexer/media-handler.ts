@@ -11,7 +11,7 @@ import { ACTIVITY_EVENTS, ZERO_ADDRESS } from '../consts';
 import { Activity } from '../database/entities/Activity';
 import { Bid } from 'src/database/entities/Bid';
 import { Collection } from 'src/database/entities/Collection';
-import { In } from 'typeorm';
+import { ILike } from 'typeorm';
 
 export class MediaHandler {
   contract: Contract;
@@ -70,12 +70,11 @@ export class MediaHandler {
       const { from, to } = eventData;
 
       const tokenId = Web3.utils.toHex(eventData.tokenId).toString();
-      const secondId = tokenId.slice(0, 2) + '0' + tokenId.slice(2);
 
       const fromUser =
         from !== ZERO_ADDRESS ? await User.findOrCreate(from) : null;
 
-      const nft = await Nft.findOneBy({ tokenId: In([tokenId, secondId]) });
+      const nft = await Nft.findOneBy({ tokenId: ILike(tokenId) });
 
       if (to === ZERO_ADDRESS) {
         await nft.burn();
