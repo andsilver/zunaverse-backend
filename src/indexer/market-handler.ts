@@ -68,7 +68,7 @@ export class MarketHandler {
       const tokenId = Web3.utils.toHex(eventData.tokenId).toString();
 
       const nft = await Nft.findOne({
-        where: { tokenId: ILike(tokenId) },
+        where: { tokenId },
         relations: ['owner'],
       });
 
@@ -151,7 +151,7 @@ export class MarketHandler {
       const tokenId = Web3.utils.toHex(eventData.tokenId).toString();
 
       const nft = await Nft.findOne({
-        where: { tokenId: ILike(tokenId) },
+        where: { tokenId },
         relations: ['owner'],
       });
 

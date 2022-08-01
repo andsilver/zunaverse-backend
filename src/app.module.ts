@@ -15,6 +15,7 @@ import { AuthModule } from './auth/auth.module';
 import { BidModule } from './bid/bid.module';
 import { CollectionModule } from './collection/collection.module';
 import { DatabaseModule } from './database/database.module';
+import { FixService } from './fix.service';
 import { IndexingService } from './indexing.service';
 import { NftModule } from './nft/nft.module';
 import { NotificationModule } from './notification/notification.module';
@@ -38,7 +39,7 @@ import { UserModule } from './user/user.module';
     NotificationModule,
   ],
   controllers: [AppController],
-  providers: [AppService, IndexingService],
+  providers: [AppService, IndexingService, FixService],
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {

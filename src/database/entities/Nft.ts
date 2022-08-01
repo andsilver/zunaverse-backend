@@ -1,4 +1,4 @@
-import { Column, Entity, Index, ManyToOne } from 'typeorm';
+import { BeforeInsert, Column, Entity, Index, ManyToOne } from 'typeorm';
 import { Activity } from './Activity';
 import { Ask } from './Ask';
 import { Bid } from './Bid';
@@ -84,5 +84,20 @@ export class Nft extends PrimaryEntity {
       await collection.calculateFloorPrice();
     }
     await this.remove();
+  }
+
+  @BeforeInsert()
+  fixTokenId() {
+    const withoutPrefix = this.tokenId.slice(2);
+
+    let endZero = 0;
+
+    while (withoutPrefix[endZero] === '0') {
+      endZero += 1;
+    }
+
+    if (endZero !== 0) {
+      this.tokenId = '0x' + withoutPrefix.slice(endZero);
+    }
   }
 }
