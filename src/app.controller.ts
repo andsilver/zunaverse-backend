@@ -22,11 +22,13 @@ export class AppController {
         .select('SUM(amount) as amount, seller')
         .groupBy('seller')
         .orderBy('amount', 'DESC')
+        .limit(20)
         .getRawMany(),
       Transaction.createQueryBuilder('t')
         .select('SUM(amount) as amount, buyer')
         .groupBy('buyer')
         .orderBy('amount', 'DESC')
+        .limit(20)
         .getRawMany(),
       Collection.find({ take: 20 }),
     ]);
