@@ -15,7 +15,7 @@ export class AppMiddleware implements NestMiddleware {
       endpoint: req.originalUrl,
       startTs: Date.now(),
     };
-    Logger.log(message, '- HTTP Request -', true);
+    Logger.log(message, '- HTTP Request -');
     next();
   }
 }

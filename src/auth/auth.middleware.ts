@@ -26,7 +26,10 @@ export class AuthMiddleware implements NestMiddleware {
             return next();
           }
           User.findByPubKey(decoded.payload.pubKey)
-            .then((user) => (req.user = user))
+            .then((user) => {
+              req.user = user;
+              Logger.log(`Current User: ${user.pubKey}`);
+            })
             .catch((error) => Logger.error(error))
             .finally(() => next());
         },
