@@ -4,11 +4,6 @@ import { Collection } from './database/entities/Collection';
 import { Nft } from './database/entities/Nft';
 import { User } from './database/entities/User';
 import { CloudinaryService } from './shared/services/cloudinary.service';
-import {
-  uploadBannerImageCloudinary,
-  uploadImageCloudinary,
-  uploadNftImageCloudinary,
-} from './shared/utils/cloudinary';
 
 @Injectable()
 export class FixService {
@@ -38,13 +33,13 @@ export class FixService {
         { secure_url: bannerUrl },
       ] = await Promise.all([
         user.avatar
-          ? uploadImageCloudinary(user.avatar, 200)
+          ? this.cloudinary.uploadImageCloudinary(user.avatar, 200)
           : Promise.resolve({ secure_url: null }),
         user.avatar
-          ? uploadImageCloudinary(user.avatar, 60)
+          ? this.cloudinary.uploadImageCloudinary(user.avatar, 60)
           : Promise.resolve({ secure_url: null }),
         user.banner
-          ? uploadBannerImageCloudinary(user.banner)
+          ? this.cloudinary.uploadBannerImageCloudinary(user.banner)
           : Promise.resolve({ secure_url: null }),
         ,
       ]);
@@ -60,10 +55,10 @@ export class FixService {
       const [{ secure_url: imageUrl }, { secure_url: bannerUrl }] =
         await Promise.all([
           collection.image
-            ? uploadImageCloudinary(collection.image, 200)
+            ? this.cloudinary.uploadImageCloudinary(collection.image, 200)
             : Promise.resolve({ secure_url: null }),
           collection.banner
-            ? uploadBannerImageCloudinary(collection.banner)
+            ? this.cloudinary.uploadBannerImageCloudinary(collection.banner)
             : Promise.resolve({ secure_url: null }),
           ,
         ]);
