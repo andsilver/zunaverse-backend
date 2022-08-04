@@ -7,12 +7,9 @@ import { v2 as cloudinary } from 'cloudinary';
 @Injectable()
 export class CloudinaryService {
   constructor() {
-    console.log(
-      process.env.CLOUDINARY_URL,
-      cloudinary.config({
-        secure: true,
-      }),
-    );
+    cloudinary.config({
+      secure: true,
+    });
   }
 
   async uploadNftImageCloudinary(url: string) {

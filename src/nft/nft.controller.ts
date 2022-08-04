@@ -11,6 +11,7 @@ import {
   UnprocessableEntityException,
   UseGuards,
 } from '@nestjs/common';
+import { ILike } from 'typeorm';
 import { ACTIVITY_EVENTS, PAGINATION } from 'src/consts';
 import { Activity } from 'src/database/entities/Activity';
 import { Ask } from 'src/database/entities/Ask';
@@ -23,8 +24,6 @@ import { Notification } from 'src/database/entities/Notification';
 import { User } from 'src/database/entities/User';
 import { CurrentUser } from 'src/shared/decorators/current-user.decorator';
 import { AuthGuard } from 'src/shared/guards/auth.guard';
-import { uploadNftImageCloudinary } from 'src/shared/utils/cloudinary';
-import { ILike } from 'typeorm';
 
 @Controller('nft')
 export class NftController {
@@ -59,10 +58,6 @@ export class NftController {
       }
     }
 
-    const { secure_url: thumbnail } = await uploadNftImageCloudinary(
-      image.replace('ipfs://', process.env.PINATA_GATE_WAY),
-    );
-
     const nft = Nft.create({
       name,
       image,
@@ -78,8 +73,8 @@ export class NftController {
       owner: user,
       creator: user,
       onSale,
-      thumbnail,
     });
+    await nft.resizeNftImage();
     await nft.save();
 
     if (collectionId) {

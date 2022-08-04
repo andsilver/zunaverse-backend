@@ -1,5 +1,6 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { IsNull } from 'typeorm';
+
 import { Collection } from './database/entities/Collection';
 import { Nft } from './database/entities/Nft';
 import { User } from './database/entities/User';
@@ -17,14 +18,17 @@ export class FixService {
     });
 
     for (const nft of nfts) {
-      const { secure_url } = await this.cloudinary.uploadNftImageCloudinary(
-        nft.image.replace('ipfs://', process.env.PINATA_GATE_WAY),
-      );
-      nft.thumbnail = secure_url;
+      await nft.resizeNftImage();
+      await nft.save();
     }
-    await Nft.save(nfts);
 
-    const users = await User.find({});
+    Logger.log('Finished NFTs');
+
+    const users = await User.find({
+      where: {
+        thumbnail: IsNull(),
+      },
+    });
 
     for (const user of users) {
       const [
@@ -48,6 +52,8 @@ export class FixService {
       user.banner = bannerUrl;
       await user.save();
     }
+
+    Logger.log('Finished Users');
 
     const collections = await Collection.find({});
 

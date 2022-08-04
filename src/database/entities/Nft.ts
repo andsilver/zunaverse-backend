@@ -1,4 +1,6 @@
 import { BeforeInsert, Column, Entity, Index, ManyToOne } from 'typeorm';
+import sharp from 'sharp';
+import fs from 'fs';
 import { Activity } from './Activity';
 import { Ask } from './Ask';
 import { Bid } from './Bid';
@@ -7,6 +9,8 @@ import { Favorite } from './Favorite';
 import { Notification } from './Notification';
 import { PrimaryEntity } from './primary-entity';
 import { User } from './User';
+import { downloadFile } from 'src/shared/utils/download-file';
+import { uploadNftImageCloudinary } from 'src/shared/utils/cloudinary';
 
 @Entity('Nfts')
 export class Nft extends PrimaryEntity {
@@ -102,5 +106,22 @@ export class Nft extends PrimaryEntity {
     if (endZero !== 0) {
       this.tokenId = '0x' + withoutPrefix.slice(endZero);
     }
+  }
+
+  async resizeNftImage() {
+    const imageUrl = this.image.replace('ipfs://', process.env.PINATA_GATE_WAY);
+    let downloadPath = `${process.env.UPLOAD_FOLDER}/${this.tokenId}`;
+    await downloadFile(imageUrl, downloadPath);
+    const file = fs.statSync(downloadPath);
+
+    if (file.size > 20971520) {
+      const outputpath = `${process.env.UPLOAD_FOLDER}/${this.tokenId}_resized`;
+      await sharp(downloadPath).resize(400, null).toFile(outputpath);
+      fs.unlinkSync(downloadPath);
+      downloadPath = outputpath;
+    }
+    const { secure_url } = await uploadNftImageCloudinary(downloadPath);
+    fs.unlinkSync(downloadPath);
+    this.thumbnail = secure_url;
   }
 }
