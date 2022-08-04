@@ -17,6 +17,11 @@ export class User extends PrimaryEntity {
   @Column({
     nullable: true,
   })
+  thumbnail: string;
+
+  @Column({
+    nullable: true,
+  })
   banner: string;
 
   @Column({

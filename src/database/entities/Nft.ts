@@ -32,6 +32,9 @@ export class Nft extends PrimaryEntity {
   @Column()
   royaltyFee: number;
 
+  @Column({ nullable: true })
+  thumbnail: string;
+
   @Column()
   image: string;
 

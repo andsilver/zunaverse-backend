@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  ForbiddenException,
   Get,
   Param,
   Patch,
@@ -8,7 +9,9 @@ import {
   Query,
   Request,
   UnprocessableEntityException,
+  UploadedFiles,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
 import { ILike } from 'typeorm';
 
@@ -23,6 +26,11 @@ import { Report } from 'src/database/entities/Report';
 import { User } from 'src/database/entities/User';
 import { CurrentUser } from 'src/shared/decorators/current-user.decorator';
 import { AuthGuard } from 'src/shared/guards/auth.guard';
+import { FileFieldsInterceptor } from '@nestjs/platform-express';
+import {
+  uploadBannerImageCloudinary,
+  uploadImageCloudinary,
+} from 'src/shared/utils/cloudinary';
 
 @Controller('user')
 export class UserController {
@@ -69,14 +77,44 @@ export class UserController {
   }
 
   @Patch(':address')
+  @UseInterceptors(
+    FileFieldsInterceptor([{ name: 'avatar' }, { name: 'banner' }]),
+  )
   @UseGuards(AuthGuard)
-  async updateProfile(@Param('address') address: string, @Body() body: any) {
+  async updateProfile(
+    @Param('address') address: string,
+    @Body() body: any,
+    @CurrentUser() currentUser: User,
+    @UploadedFiles()
+    files: { avatar: Express.Multer.File[]; banner: Express.Multer.File[] },
+  ) {
     const user = await User.findByPubKey(address);
 
     if (!user) {
       throw new UnprocessableEntityException({
         message: 'User not found',
       });
+    }
+
+    if (user.id !== currentUser.id) {
+      throw new ForbiddenException('Not allowed');
+    }
+
+    const { avatar, banner } = files;
+
+    if (avatar) {
+      const [{ secure_url: avatarUrl }, { secure_url: thumbnailUrl }] =
+        await Promise.all([
+          uploadImageCloudinary(avatar[0].path, 200),
+          uploadImageCloudinary(avatar[0].path, 60),
+        ]);
+      body.avatar = avatarUrl;
+      body.thumbnailUrl = thumbnailUrl;
+    }
+
+    if (banner) {
+      const { secure_url } = await uploadBannerImageCloudinary(banner[0].path);
+      body.banner = secure_url;
     }
 
     for (const key of Object.keys(body)) {

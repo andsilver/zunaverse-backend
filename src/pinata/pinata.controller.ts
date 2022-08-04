@@ -22,7 +22,6 @@ export class PinataController {
   @UseGuards(AuthGuard)
   @UseInterceptors(FileInterceptor('file'))
   async pinFile(@UploadedFile() file: Express.Multer.File) {
-    console.log(file.path);
     const readableStreamForFile = fs.createReadStream(file.path);
     const res = await pinata.pinFileToIPFS(readableStreamForFile);
     return res;

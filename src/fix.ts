@@ -1,3 +1,4 @@
+require('dotenv').config();
 import { NestFactory } from '@nestjs/core';
 import { Logger } from '@nestjs/common';
 
@@ -9,7 +10,7 @@ async function bootstrap() {
     const fixer = appContext.get(FixService);
     Logger.log('Started...');
     fixer
-      .fixTokenId()
+      .addNftThumbnail()
       .then(() => Logger.log('Finished'))
       .catch((err) => Logger.error(err, 'Failed!'))
       .finally(() => {

@@ -27,18 +27,24 @@ export class Indexer {
     if (this.inProgress) {
       return;
     }
-    this.inProgress = true;
-    let ethBlock = (await EthBlock.find({}))[0];
 
-    if (!ethBlock) {
-      ethBlock = new EthBlock();
-      ethBlock.blockNumber = this.startBlock;
-      await ethBlock.save();
+    try {
+      this.inProgress = true;
+      let ethBlock = (await EthBlock.find({}))[0];
+
+      if (!ethBlock) {
+        ethBlock = new EthBlock();
+        ethBlock.blockNumber = this.startBlock;
+        await ethBlock.save();
+      }
+
+      await this.processIndex(ethBlock);
+
+      this.inProgress = false;
+    } catch (err) {
+      this.inProgress = false;
+      Logger.error('Indexing Error', err);
     }
-
-    await this.processIndex(ethBlock);
-
-    this.inProgress = false;
   }
 
   // async indexFromStartBlock() {

@@ -23,6 +23,7 @@ import { Notification } from 'src/database/entities/Notification';
 import { User } from 'src/database/entities/User';
 import { CurrentUser } from 'src/shared/decorators/current-user.decorator';
 import { AuthGuard } from 'src/shared/guards/auth.guard';
+import { uploadNftImageCloudinary } from 'src/shared/utils/cloudinary';
 import { ILike } from 'typeorm';
 
 @Controller('nft')
@@ -58,6 +59,10 @@ export class NftController {
       }
     }
 
+    const { secure_url: thumbnail } = await uploadNftImageCloudinary(
+      image.replace('ipfs://', process.env.PINATA_GATE_WAY),
+    );
+
     const nft = Nft.create({
       name,
       image,
@@ -73,6 +78,7 @@ export class NftController {
       owner: user,
       creator: user,
       onSale,
+      thumbnail,
     });
     await nft.save();
 
@@ -200,7 +206,6 @@ export class NftController {
     return entities.map((e, index) => {
       e.favorites = +raw[index].favorites;
       e.favorited = !!+raw[index].favorited;
-      e.image = e.image.replace('ipfs://', process.env.PINATA_GATE_WAY);
       return e;
     });
   }
