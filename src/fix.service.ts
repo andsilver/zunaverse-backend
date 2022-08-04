@@ -17,9 +17,18 @@ export class FixService {
       },
     });
 
-    for (const nft of nfts) {
-      await nft.resizeNftImage();
-      await nft.save();
+    Logger.log(nfts.length);
+
+    const chunkSize = 10;
+    for (let i = 0; i < nfts.length; i += chunkSize) {
+      const chunk = nfts.slice(i, i + chunkSize);
+      // do whatever
+      await Promise.all(
+        chunk.map(async (nft) => {
+          await nft.resizeNftImage();
+          await nft.save();
+        }),
+      );
     }
 
     Logger.log('Finished NFTs');
