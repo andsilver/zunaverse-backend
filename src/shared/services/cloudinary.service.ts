@@ -14,7 +14,7 @@ export class CloudinaryService {
 
   async uploadNftImageCloudinary(url: string) {
     return await cloudinary.uploader.upload(url, {
-      folder: 'zunaverse/nfts',
+      folder: 'nfts',
       transformation: {
         width: 400,
         crop: 'scale',
@@ -24,7 +24,7 @@ export class CloudinaryService {
 
   async uploadImageCloudinary(path: string, width: number) {
     return await cloudinary.uploader.upload(path, {
-      folder: 'zunaverse/thumbnails',
+      folder: 'thumbnails',
       transformation: {
         width,
         crop: 'scale',
@@ -34,7 +34,7 @@ export class CloudinaryService {
 
   async uploadBannerImageCloudinary(path: string) {
     return await cloudinary.uploader.upload(path, {
-      folder: 'zunaverse/banners',
+      folder: 'banners',
     });
   }
 }

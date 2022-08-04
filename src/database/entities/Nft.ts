@@ -11,6 +11,7 @@ import { PrimaryEntity } from './primary-entity';
 import { User } from './User';
 import { downloadFile } from 'src/shared/utils/download-file';
 import { uploadNftImageCloudinary } from 'src/shared/utils/cloudinary';
+import { Logger } from '@nestjs/common';
 
 @Entity('Nfts')
 export class Nft extends PrimaryEntity {
@@ -109,6 +110,7 @@ export class Nft extends PrimaryEntity {
   }
 
   async resizeNftImage() {
+    Logger.log(`Processing NFT image: ${this.name}`);
     const imageUrl = this.image.replace('ipfs://', process.env.PINATA_GATE_WAY);
     let downloadPath = `${process.env.UPLOAD_FOLDER}/${this.tokenId}`;
     await downloadFile(imageUrl, downloadPath);
@@ -123,5 +125,6 @@ export class Nft extends PrimaryEntity {
     const { secure_url } = await uploadNftImageCloudinary(downloadPath);
     fs.unlinkSync(downloadPath);
     this.thumbnail = secure_url;
+    Logger.log(`Finished processing NFT image: ${this.name}`);
   }
 }

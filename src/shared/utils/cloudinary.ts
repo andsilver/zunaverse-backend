@@ -8,6 +8,7 @@ cloudinary.config({
 
 export async function uploadNftImageCloudinary(url: string) {
   return await cloudinary.uploader.upload(url, {
+    folder: 'nfts',
     transformation: {
       width: 400,
       crop: 'scale',
@@ -17,6 +18,7 @@ export async function uploadNftImageCloudinary(url: string) {
 
 export async function uploadImageCloudinary(path: string, width: number) {
   return await cloudinary.uploader.upload(path, {
+    folder: 'thumbnails',
     transformation: {
       width,
       crop: 'scale',
@@ -25,5 +27,7 @@ export async function uploadImageCloudinary(path: string, width: number) {
 }
 
 export async function uploadBannerImageCloudinary(path: string) {
-  return await cloudinary.uploader.upload(path);
+  return await cloudinary.uploader.upload(path, {
+    folder: 'banners',
+  });
 }
