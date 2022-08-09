@@ -11,7 +11,7 @@ async function bootstrap() {
     const fixer = appContext.get(FixService);
     Logger.log('Started...');
     fixer
-      .addNftThumbnail()
+      .addCollectionProperties()
       .then(() => Logger.log('Finished'))
       .catch((err) => Logger.error(err, 'Failed!'))
       .finally(() => {

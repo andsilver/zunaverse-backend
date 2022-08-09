@@ -79,6 +79,7 @@ export class NftController {
 
     if (collectionId) {
       await collection.calculateMetrics();
+      await nft.updateCollectionProperty();
     }
 
     const acitivity = Activity.create({
@@ -103,6 +104,7 @@ export class NftController {
       creatorAddress,
       category,
       collectionId,
+      properties,
       offset,
       size,
     } = query;
@@ -195,6 +197,33 @@ export class NftController {
             }),
         'favorited',
       );
+    }
+
+    if (properties) {
+      const propertiesQuery = properties
+        .split(';')
+        .map((p) => {
+          const [name, value] = p.split(':');
+          const property = {
+            name,
+            value: value.split(','),
+          };
+          return property.value
+            .map((v) => `(p.name = '${name}' AND p.value = '${v}')`)
+            .join(' OR ');
+        })
+        .join(' OR ');
+
+      qb = qb.andWhere(`
+        EXISTS (
+          SELECT
+            *
+          FROM
+            JSON_TO_RECORDSET(Nfts.properties) as p(name text, value text)
+          WHERE
+            ${propertiesQuery}
+        )
+      `);
     }
     const { raw, entities } = await qb.getRawAndEntities();
 

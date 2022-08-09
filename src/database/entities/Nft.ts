@@ -109,6 +109,31 @@ export class Nft extends PrimaryEntity {
     }
   }
 
+  async updateCollectionProperty() {
+    if (!this.collectionId) {
+      return;
+    }
+    const collection = await Collection.findOneBy({ id: this.collectionId });
+
+    let collectionUpdated = false;
+
+    for (const property of this.properties) {
+      if (collection.properties[property.name]) {
+        if (collection.properties[property.name].includes(property.value)) {
+          continue;
+        }
+      } else {
+        collection.properties[property.name] = [];
+      }
+      collection.properties[property.name].push(property.value);
+      collectionUpdated = true;
+    }
+
+    if (collectionUpdated) {
+      await collection.save();
+    }
+  }
+
   async resizeNftImage() {
     Logger.log(`Processing NFT image: ${this.name}`);
     const imageUrl = this.image.replace('ipfs://', process.env.PINATA_GATE_WAY);

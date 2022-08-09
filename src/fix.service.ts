@@ -10,6 +10,14 @@ import { CloudinaryService } from './shared/services/cloudinary.service';
 export class FixService {
   constructor(private cloudinary: CloudinaryService) {}
 
+  async addCollectionProperties() {
+    const nfts = await Nft.find({});
+
+    for (const nft of nfts) {
+      await nft.updateCollectionProperty();
+    }
+  }
+
   async addNftThumbnail() {
     const nfts = await Nft.find({
       where: {
@@ -26,9 +34,9 @@ export class FixService {
       await Promise.all(
         chunk.map(async (nft) => {
           await nft.resizeNftImage();
-          await nft.save();
         }),
       );
+      await Nft.save(chunk);
     }
 
     Logger.log('Finished NFTs');

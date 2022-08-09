@@ -54,6 +54,9 @@ export class Collection extends PrimaryEntity {
   @Column({ default: 0 })
   owners: number;
 
+  @Column({ type: 'json', default: {} })
+  properties: { [key: string]: string[] };
+
   async calculateMetrics() {
     this.items = await Nft.count({ where: { collectionId: this.id } });
     const ownersQuery = await Nft.createQueryBuilder('n')
