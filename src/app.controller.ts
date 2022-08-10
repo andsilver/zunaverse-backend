@@ -30,7 +30,7 @@ export class AppController {
         .orderBy('amount', 'DESC')
         .limit(20)
         .getRawMany(),
-      Collection.find({ take: 20 }),
+      Collection.find({ where: { featured: true }, take: 20 }),
     ]);
 
     const users = await User.find({
