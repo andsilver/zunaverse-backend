@@ -47,24 +47,6 @@ export class Indexer {
     }
   }
 
-  // async indexFromStartBlock() {
-  //   this.inProgress = true;
-
-  //   await EthBlock.delete({});
-  //   await Bid.delete({});
-  //   await Nft.delete({});
-  //   await Activity.delete({});
-  //   await Ask.delete({});
-
-  //   const ethBlock = new EthBlock();
-  //   ethBlock.blockNumber = this.startBlock;
-  //   await ethBlock.save();
-
-  //   await this.processIndex(ethBlock);
-
-  //   this.inProgress = false;
-  // }
-
   async processIndex(startBlock: EthBlock) {
     const toBlock = await this.web3.eth.getBlockNumber();
     const logs = await this.getLogs(startBlock.blockNumber + 1, toBlock);
@@ -109,7 +91,7 @@ export class Indexer {
   }
 
   async getLogs(fromBlockNumber: number, toBlock: number | 'latest') {
-    const chunkLimit = 4000;
+    const chunkLimit = 1000;
 
     const toBlockNumber =
       toBlock === 'latest' ? await this.web3.eth.getBlockNumber() : +toBlock;

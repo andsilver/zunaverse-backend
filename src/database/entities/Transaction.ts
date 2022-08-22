@@ -9,6 +9,9 @@ export class Transaction extends PrimaryEntity {
   @Column()
   currency: string;
 
+  @Column({ type: 'real', nullable: true })
+  usd: number;
+
   @Column()
   nftId: number;
 

@@ -12,6 +12,12 @@ import { Transaction } from 'src/database/entities/Transaction';
 import { Bid } from 'src/database/entities/Bid';
 import { ILike } from 'typeorm';
 import { Collection } from 'src/database/entities/Collection';
+import { fetchCoins } from 'src/shared/utils/coingecko';
+import {
+  currencyAddressToSymbol,
+  fromWei,
+  getCurrency,
+} from 'src/shared/utils/currency';
 
 export class MarketHandler {
   contract: Contract;
@@ -86,10 +92,16 @@ export class MarketHandler {
       if (!activity) {
         throw new Error(`Transfer activity missing`);
       }
+      const currencies = await fetchCoins();
+      const symbol = currencyAddressToSymbol(offer.erc20Address);
+      const currency = getCurrency(symbol);
+
       activity.event = 'Sale';
-      activity.amount = Web3.utils.fromWei(offer.amount);
+      activity.amount = fromWei(offer.amount, currency.decimals);
       activity.currency = offer.erc20Address;
       await activity.save();
+
+      const usd = currencies[symbol].current_price * +activity.amount;
 
       await Transaction.create({
         amount: +activity.amount,
@@ -99,6 +111,7 @@ export class MarketHandler {
         collectionId: nft.collectionId,
         buyer,
         seller,
+        usd,
       }).save();
 
       const user = await User.findByPubKey(seller);
@@ -129,8 +142,9 @@ export class MarketHandler {
       if (!collection) {
         console.log('Collection doesnt exist', nft.collectionId);
       } else {
-        collection.totalVolume += +activity.amount;
+        collection.totalVolume += usd;
         await collection.calculateMetrics();
+        await collection.calculateFloorPrice();
       }
     } catch (err) {
       console.error('ERROR Market Bought:\n', err);
@@ -169,10 +183,16 @@ export class MarketHandler {
       if (!activity) {
         throw new Error(`Transfer activity missing`);
       }
+      const currencies = await fetchCoins();
+      const symbol = currencyAddressToSymbol(offer.erc20Address);
+      const currency = getCurrency(symbol);
+
       activity.event = 'Sale';
-      activity.amount = Web3.utils.fromWei(offer.amount);
+      activity.amount = fromWei(offer.amount, currency.decimals);
       activity.currency = offer.erc20Address;
       await activity.save();
+
+      const usd = currencies[symbol].current_price * +activity.amount;
 
       await Transaction.create({
         amount: +activity.amount,
@@ -182,6 +202,7 @@ export class MarketHandler {
         collectionId: nft.collectionId,
         buyer,
         seller,
+        usd,
       }).save();
 
       const user = await User.findByPubKey(buyer);
@@ -211,8 +232,9 @@ export class MarketHandler {
       if (!collection) {
         console.log('Collection doesnt exist', nft.collectionId);
       } else {
-        collection.totalVolume += +activity.amount;
+        collection.totalVolume += usd;
         await collection.calculateMetrics();
+        await collection.calculateFloorPrice();
       }
     } catch (err) {
       console.error('ERROR Market OfferAccepted:\n', err);

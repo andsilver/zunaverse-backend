@@ -3,18 +3,56 @@ import { IsNull } from 'typeorm';
 
 import { Collection } from './database/entities/Collection';
 import { Nft } from './database/entities/Nft';
+import { Transaction } from './database/entities/Transaction';
 import { User } from './database/entities/User';
 import { CloudinaryService } from './shared/services/cloudinary.service';
+import { fetchCoins } from './shared/utils/coingecko';
+import { currencyAddressToSymbol } from './shared/utils/currency';
 
 @Injectable()
 export class FixService {
   constructor(private cloudinary: CloudinaryService) {}
 
   async addCollectionProperties() {
+    await Collection.update(
+      {},
+      {
+        properties: {},
+      },
+    );
     const nfts = await Nft.find({});
 
     for (const nft of nfts) {
+      nft.properties = nft.properties.map((p) => {
+        return {
+          name: (p.name.charAt(0).toUpperCase() + p.name.slice(1)).trim(),
+          value: (p.value as string).trim(),
+        };
+      });
+      await nft.save();
       await nft.updateCollectionProperty();
+    }
+  }
+
+  async updateUSD() {
+    const transactions = await Transaction.find({});
+    const currencies = await fetchCoins();
+    console.log(currencies);
+    for (const transaction of transactions) {
+      const symbol = currencyAddressToSymbol(transaction.currency);
+      if (symbol) {
+        await Transaction.update(transaction.id, {
+          usd: +transaction.amount * +currencies[symbol].current_price,
+        });
+      }
+    }
+
+    const collections = await Collection.find({});
+
+    for (const collection of collections) {
+      collection.totalVolume =
+        collection.totalVolume * currencies.wbnb.current_price;
+      await collection.calculateFloorPrice();
     }
   }
 

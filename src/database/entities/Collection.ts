@@ -1,3 +1,5 @@
+import { fetchCoins } from 'src/shared/utils/coingecko';
+import { currencyAddressToSymbol } from 'src/shared/utils/currency';
 import { Column, Entity, ManyToOne } from 'typeorm';
 import { Ask } from './Ask';
 import { Nft } from './Nft';
@@ -48,6 +50,9 @@ export class Collection extends PrimaryEntity {
   @Column({ default: 0, type: 'real' })
   floorPrice: number;
 
+  @Column({ default: 'wbnb', nullable: true })
+  floorPriceCurrency: string;
+
   @Column({ default: 0 })
   items: number;
 
@@ -70,13 +75,31 @@ export class Collection extends PrimaryEntity {
     await this.save();
   }
 
-  async calculateFloorPrice() {
+  async calculateFloorPrice(currencies?: any) {
     const asks = await Ask.find({ where: { collectionId: this.id } });
 
-    if (asks.length) {
-      const askPrices = asks.map((ask) => +ask.amount);
-      this.floorPrice = Math.min(...askPrices);
-      await this.save();
+    if (!currencies) {
+      currencies = await fetchCoins();
     }
+
+    if (asks.length) {
+      let min = 0;
+
+      asks.forEach((ask) => {
+        const symbol = currencyAddressToSymbol(ask.currency);
+        const usdPrice = currencies[symbol].current_price;
+        const price = +usdPrice * +ask.amount;
+
+        if (!min || price < min) {
+          min = price;
+          this.floorPrice = +ask.amount;
+          this.floorPriceCurrency = symbol;
+        }
+      });
+    } else {
+      this.floorPrice = 0;
+      this.floorPriceCurrency = null;
+    }
+    await this.save();
   }
 }

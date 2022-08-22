@@ -19,13 +19,13 @@ export class AppController {
         take: 20,
       }),
       Transaction.createQueryBuilder('t')
-        .select('SUM(amount) as amount, seller')
+        .select('SUM(usd) as amount, seller')
         .groupBy('seller')
         .orderBy('amount', 'DESC')
         .limit(20)
         .getRawMany(),
       Transaction.createQueryBuilder('t')
-        .select('SUM(amount) as amount, buyer')
+        .select('SUM(usd) as amount, buyer')
         .groupBy('buyer')
         .orderBy('amount', 'DESC')
         .limit(20)

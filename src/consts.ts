@@ -17,3 +17,14 @@ export const ACTIVITY_EVENTS = {
   FOLLOWINGS: 'Following',
   TRANSFERS: 'Transfer',
 };
+
+export const CURRENCIES = {
+  wbnb: {
+    address: process.env.WBNB_ADDRESS,
+    decimals: 18,
+  },
+  zuna: {
+    address: process.env.ZUNA_ADDRESS,
+    decimals: 8,
+  },
+};
