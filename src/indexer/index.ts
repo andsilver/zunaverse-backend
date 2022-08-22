@@ -91,7 +91,7 @@ export class Indexer {
   }
 
   async getLogs(fromBlockNumber: number, toBlock: number | 'latest') {
-    const chunkLimit = 1000;
+    const chunkLimit = 500;
 
     const toBlockNumber =
       toBlock === 'latest' ? await this.web3.eth.getBlockNumber() : +toBlock;
