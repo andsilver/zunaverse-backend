@@ -91,7 +91,7 @@ export class Indexer {
   }
 
   async getLogs(fromBlockNumber: number, toBlock: number | 'latest') {
-    const chunkLimit = 500;
+    const chunkLimit = 5000;
 
     const toBlockNumber =
       toBlock === 'latest' ? await this.web3.eth.getBlockNumber() : +toBlock;
@@ -118,12 +118,18 @@ export class Indexer {
     const logs = [];
 
     for (const chunk of chunks) {
-      const chunkLogs = await this.web3.eth.getPastLogs({
-        fromBlock: chunk.fromBlock,
-        toBlock: chunk.toBlock,
-        address: [process.env.MEDIA_CONTRACT, process.env.MARKET_CONTRACT],
-      });
-      logs.push(...chunkLogs);
+      try {
+        const chunkLogs = await this.web3.eth.getPastLogs({
+          fromBlock: chunk.fromBlock,
+          toBlock: chunk.toBlock,
+          address: [process.env.MEDIA_CONTRACT, process.env.MARKET_CONTRACT],
+        });
+        logs.push(...chunkLogs);
+      } catch (err) {
+        Logger.error('getPastLogs:');
+        Logger.error(err);
+        break;
+      }
     }
     return logs;
   }

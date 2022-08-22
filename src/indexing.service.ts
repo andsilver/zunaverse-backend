@@ -14,7 +14,7 @@ export class IndexingService implements OnApplicationBootstrap {
     // this.indexer.indexFromStartBlock();
   }
 
-  @Cron('*/5 * * * * *')
+  @Cron('*/30 * * * * *')
   handleCron() {
     this.indexer.index();
   }
