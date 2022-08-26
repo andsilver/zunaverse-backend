@@ -12,7 +12,6 @@ export const currencySymbolToAddress = (symbol: string) => {
 export const currencyAddressToSymbol = (address: string) => {
   for (const symbol of Object.keys(CURRENCIES)) {
     const currency = CURRENCIES[symbol];
-    console.log(currency);
 
     if (currency && currency.address.toLowerCase() === address.toLowerCase()) {
       return symbol;
