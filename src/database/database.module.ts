@@ -15,6 +15,8 @@ import { Transaction } from './entities/Transaction';
 import { Follow } from './entities/Follow';
 import { Report } from './entities/Report';
 import { UserBuyHistory } from './entities/UserBuyHistory';
+import { Reward } from './entities/Reward';
+import { RewardDetail } from './entities/RewardDetail';
 // import { TopSeller } from './views/TopSeller';
 
 @Module({
@@ -47,6 +49,8 @@ import { UserBuyHistory } from './entities/UserBuyHistory';
         Follow,
         Report,
         UserBuyHistory,
+        Reward,
+        RewardDetail,
         // TopSeller,
       ],
       synchronize: true,

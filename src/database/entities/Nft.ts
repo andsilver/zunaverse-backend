@@ -73,6 +73,9 @@ export class Nft extends PrimaryEntity {
   @Column({ nullable: true })
   txHash: string;
 
+  @Column({ nullable: true, default: 0 })
+  rewardsMonths: number;
+
   favorited: boolean;
   favorites: number;
   collection: Collection;

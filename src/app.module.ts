@@ -21,6 +21,7 @@ import { NftModule } from './nft/nft.module';
 import { NotificationModule } from './notification/notification.module';
 import { PinataModule } from './pinata/pinata.module';
 import { ReportModule } from './report/report.module';
+import { RewardsService } from './rewards.service';
 import { SharedModule } from './shared/shared.module';
 import { UserModule } from './user/user.module';
 
@@ -41,7 +42,7 @@ import { UserModule } from './user/user.module';
     SharedModule,
   ],
   controllers: [AppController],
-  providers: [AppService, IndexingService, FixService],
+  providers: [AppService, IndexingService, FixService, RewardsService],
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {

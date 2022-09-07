@@ -10,13 +10,13 @@ async function bootstrap() {
   NestFactory.createApplicationContext(AppModule).then((appContext) => {
     const fixer = appContext.get(FixService);
     Logger.log('Started...');
-    fixer
-      .updateUSD()
-      .then(() => Logger.log('Finished'))
-      .catch((err) => Logger.error(err, 'Failed!'))
-      .finally(() => {
-        appContext.close();
-      });
+    // fixer
+    //   .updateUSD()
+    //   .then(() => Logger.log('Finished'))
+    //   .catch((err) => Logger.error(err, 'Failed!'))
+    //   .finally(() => {
+    //     appContext.close();
+    //   });
   });
 }
 bootstrap();

@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { IsNull } from 'typeorm';
+import Web3 from 'web3';
 
 import { Collection } from './database/entities/Collection';
 import { Nft } from './database/entities/Nft';
@@ -31,28 +32,6 @@ export class FixService {
       });
       await nft.save();
       await nft.updateCollectionProperty();
-    }
-  }
-
-  async updateUSD() {
-    const transactions = await Transaction.find({});
-    const currencies = await fetchCoins();
-    console.log(currencies);
-    for (const transaction of transactions) {
-      const symbol = currencyAddressToSymbol(transaction.currency);
-      if (symbol) {
-        await Transaction.update(transaction.id, {
-          usd: +transaction.amount * +currencies[symbol].current_price,
-        });
-      }
-    }
-
-    const collections = await Collection.find({});
-
-    for (const collection of collections) {
-      collection.totalVolume =
-        collection.totalVolume * currencies.wbnb.current_price;
-      await collection.calculateFloorPrice();
     }
   }
 
