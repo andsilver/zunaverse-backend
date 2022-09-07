@@ -33,7 +33,7 @@ export class RewardsService {
     this.controllerAddress = (await web3.eth.getAccounts())[0];
   }
 
-  @Cron('59 * * * *')
+  @Cron('0 0 1 * *')
   async releaseStaticRewards() {
     const collection = await Collection.findOne({
       where: { id: 1 },
@@ -66,15 +66,6 @@ export class RewardsService {
     const tier4Owners = tierFilterFn(4);
     const tier5Owners = tierFilterFn(5);
     const tier6Owners = tierFilterFn(6);
-
-    console.log(
-      tier1Owners,
-      tier2Owners,
-      tier3Owners,
-      tier4Owners,
-      tier5Owners,
-      tier6Owners,
-    );
 
     const result = await this.rewardsContract.methods
       .releaseStaticRewards([
@@ -131,4 +122,7 @@ export class RewardsService {
     }
     await RewardDetail.save(rewardDetailsTobeCreated);
   }
+
+  @Cron('0 0 * * MON')
+  async releaseBuybackRewards() {}
 }
