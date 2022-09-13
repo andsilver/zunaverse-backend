@@ -31,6 +31,7 @@ import {
   uploadBannerImageCloudinary,
   uploadImageCloudinary,
 } from 'src/shared/utils/cloudinary';
+import { RewardDetail } from 'src/database/entities/RewardDetail';
 
 @Controller('user')
 export class UserController {
@@ -312,5 +313,34 @@ export class UserController {
       receiver: address,
     }).save();
     return { success: true };
+  }
+
+  @Get(':address/rewards')
+  @UseGuards(AuthGuard)
+  async getRewards(@Param('address') address: string, @Query() query: any) {
+    let qb = RewardDetail.createQueryBuilder('rd');
+
+    if (query.rewardType) {
+      qb = qb.andWhere(`rewardType = :rewardType`, {
+        rewardType: query.rewardType,
+      });
+    }
+
+    if (query.startDate || query.endDate) {
+      qb = qb.andWhere('rd.createdAt BETWEEN :startDate AND :endDate', {
+        startDate: new Date(
+          query.startDate || new Date(2022, 9, 1),
+        ).toISOString(),
+        endDate: new Date(query.endDate || new Date()).toISOString(),
+      });
+    }
+
+    return qb
+      .where('rd.userPubKey ILIKE :address', { address })
+      .leftJoinAndMapOne('rd.nft', Nft, 'n', 'n.id = rd.nftId')
+      .orderBy('rd.createdAt', 'DESC')
+      .skip(query.offset)
+      .take(PAGINATION)
+      .getMany();
   }
 }

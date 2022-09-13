@@ -4,6 +4,8 @@ import Web3 from 'web3';
 
 import { Collection } from './database/entities/Collection';
 import { Nft } from './database/entities/Nft';
+import { Reward } from './database/entities/Reward';
+import { RewardDetail } from './database/entities/RewardDetail';
 import { Transaction } from './database/entities/Transaction';
 import { User } from './database/entities/User';
 import { CloudinaryService } from './shared/services/cloudinary.service';
@@ -32,6 +34,25 @@ export class FixService {
       });
       await nft.save();
       await nft.updateCollectionProperty();
+    }
+  }
+
+  async fix() {
+    const rewards = await Reward.find({});
+    for (const reward of rewards) {
+      reward.tier1Holders = reward.tier1Holders.map((h) => h.toLowerCase());
+      reward.tier2Holders = reward.tier2Holders.map((h) => h.toLowerCase());
+      reward.tier3Holders = reward.tier3Holders.map((h) => h.toLowerCase());
+      reward.tier4Holders = reward.tier4Holders.map((h) => h.toLowerCase());
+      reward.tier5Holders = reward.tier5Holders.map((h) => h.toLowerCase());
+      reward.tier6Holders = reward.tier6Holders.map((h) => h.toLowerCase());
+      await reward.save();
+    }
+
+    const rewardDetails = await RewardDetail.find({});
+    for (const rewardDetail of rewardDetails) {
+      rewardDetail.userPubKey = rewardDetail.userPubKey.toLowerCase();
+      await rewardDetail.save();
     }
   }
 

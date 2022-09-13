@@ -25,10 +25,14 @@ export class Reward extends PrimaryEntity {
   tier6Holders: string[];
 
   @Column({ nullable: true })
-  totalAmount: string;
+  wbnbAmount: string;
 
+  @Column({ nullable: true })
+  zunaAmount: string;
+
+  // for buyback reward
   @Column({ type: 'json', nullable: true })
-  transactionIds: string[];
+  transactionIds: number[];
 
   @Column()
   txHash: string;

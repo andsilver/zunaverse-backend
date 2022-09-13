@@ -22,6 +22,7 @@ import { NotificationModule } from './notification/notification.module';
 import { PinataModule } from './pinata/pinata.module';
 import { ReportModule } from './report/report.module';
 import { RewardsService } from './rewards.service';
+import { RewardsModule } from './rewards/rewards.module';
 import { SharedModule } from './shared/shared.module';
 import { UserModule } from './user/user.module';
 
@@ -39,6 +40,7 @@ import { UserModule } from './user/user.module';
     ReportModule,
     ActivityModule,
     NotificationModule,
+    RewardsModule,
     SharedModule,
   ],
   controllers: [AppController],
