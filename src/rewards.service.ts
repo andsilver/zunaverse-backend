@@ -181,81 +181,106 @@ export class RewardsService {
       (t) =>
         t.currency.toLowerCase() === process.env.WBNB_ADDRESS.toLowerCase(),
     );
-    let zunaAmount: any = zunaTransactions.reduce(
-      (sum, t) => t.amount + sum,
-      0,
-    );
-    let wbnbAmount: any = wbnbTransactions.reduce(
-      (sum, t) => t.amount + sum,
-      0,
-    );
+    let zunaAmount: any =
+      zunaTransactions.reduce((sum, t) => t.amount + sum, 0) / 40;
+    let wbnbAmount: any =
+      wbnbTransactions.reduce((sum, t) => t.amount + sum, 0) / 40;
 
-    zunaAmount = Web3.utils.toWei(zunaAmount.toString(), 'gwei');
-    wbnbAmount = Web3.utils.toWei(wbnbAmount.toString());
+    zunaAmount = Web3.utils.toWei(`${zunaAmount}`, 'gwei');
+    wbnbAmount = Web3.utils.toWei(`${wbnbAmount}`);
 
     this.logger.log(`Transactions: ${transactions.length}`);
     this.logger.log(`Zuna: ${zunaAmount}`);
     this.logger.log(`WBNB: ${wbnbAmount}`);
 
-    const result = await this.rewardsContract.methods
-      .releaseBuybackRewards(
-        [
-          tier1Owners,
-          tier2Owners,
-          tier3Owners,
-          tier4Owners,
-          tier5Owners,
-          tier6Owners,
-        ],
-        wbnbAmount,
-        zunaAmount,
-      )
-      .send({
-        from: this.controllerAddress,
-      });
-
-    const reward = Reward.create({
-      tier1Holders: tier1Owners,
-      tier2Holders: tier2Owners,
-      tier3Holders: tier3Owners,
-      tier4Holders: tier4Owners,
-      tier5Holders: tier5Owners,
-      tier6Holders: tier6Owners,
-      rewardType: 'buyback',
-      txHash: result.transactionHash,
-      transactionIds: transactions.map((t) => t.id),
-      zunaAmount,
-      wbnbAmount,
-    });
-    await reward.save();
-    const rewardDetailsTobeCreated: RewardDetail[] = [];
-
-    for (const nft of zunaNFTs) {
-      if (nft.owner.id === collection.owner.id) {
-        continue;
-      }
-      const property = nft.properties.find(
-        (p) => p.name.toLowerCase() === 'tier',
+    try {
+      this.logger.log(
+        await this.rewardsContract.methods
+          .releaseBuybackRewards(
+            [
+              tier1Owners,
+              tier2Owners,
+              tier3Owners,
+              tier4Owners,
+              tier5Owners,
+              tier6Owners,
+            ],
+            wbnbAmount,
+            zunaAmount,
+          )
+          .estimateGas({
+            from: this.controllerAddress,
+          }),
       );
-      if (!property) {
-        Logger.error('Tier property error:');
-        console.log(nft);
-        continue;
-      }
-      const rewardDetail = RewardDetail.create({
-        nftId: nft.id,
-        userPubKey: nft.owner.pubKey.toLowerCase(),
-        rewardId: reward.id,
-        rewardTier: +nft.properties.find((p) => p.name.toLowerCase() === 'tier')
-          .value,
-        rewardType: 'buyback',
-        txHash: reward.txHash,
-      });
-      nft.rewardsMonths += 1;
-      await nft.save();
-      rewardDetailsTobeCreated.push(rewardDetail);
+    } catch (err) {
+      console.error(err);
     }
-    await RewardDetail.save(rewardDetailsTobeCreated);
-    this.logger.log(`Successfully released buyback rewards: ${reward.id}`);
+
+    try {
+      const result = await this.rewardsContract.methods
+        .releaseBuybackRewards(
+          [
+            tier1Owners,
+            tier2Owners,
+            tier3Owners,
+            tier4Owners,
+            tier5Owners,
+            tier6Owners,
+          ],
+          wbnbAmount,
+          zunaAmount,
+        )
+        .send({
+          from: this.controllerAddress,
+        });
+
+      this.logger.log(`Reward Result:`);
+      console.log(result);
+
+      const reward = Reward.create({
+        tier1Holders: tier1Owners,
+        tier2Holders: tier2Owners,
+        tier3Holders: tier3Owners,
+        tier4Holders: tier4Owners,
+        tier5Holders: tier5Owners,
+        tier6Holders: tier6Owners,
+        rewardType: 'buyback',
+        txHash: result.transactionHash,
+        transactionIds: transactions.map((t) => t.id),
+        zunaAmount,
+        wbnbAmount,
+      });
+      await reward.save();
+      const rewardDetailsTobeCreated: RewardDetail[] = [];
+
+      for (const nft of zunaNFTs) {
+        if (nft.owner.id === collection.owner.id) {
+          continue;
+        }
+        const property = nft.properties.find(
+          (p) => p.name.toLowerCase() === 'tier',
+        );
+        if (!property) {
+          Logger.error('Tier property error:');
+          console.log(nft);
+          continue;
+        }
+        const rewardDetail = RewardDetail.create({
+          nftId: nft.id,
+          userPubKey: nft.owner.pubKey.toLowerCase(),
+          rewardId: reward.id,
+          rewardTier: +nft.properties.find(
+            (p) => p.name.toLowerCase() === 'tier',
+          ).value,
+          rewardType: 'buyback',
+          txHash: reward.txHash,
+        });
+        rewardDetailsTobeCreated.push(rewardDetail);
+      }
+      await RewardDetail.save(rewardDetailsTobeCreated);
+      this.logger.log(`Successfully released buyback rewards: ${reward.id}`);
+    } catch (err) {
+      console.error(err);
+    }
   }
 }

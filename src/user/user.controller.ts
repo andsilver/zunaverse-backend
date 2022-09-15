@@ -339,7 +339,7 @@ export class UserController {
       .where('rd.userPubKey ILIKE :address', { address })
       .leftJoinAndMapOne('rd.nft', Nft, 'n', 'n.id = rd.nftId')
       .orderBy('rd.createdAt', 'DESC')
-      .skip(query.offset)
+      .skip(+query.offset || 0)
       .take(PAGINATION)
       .getMany();
   }
