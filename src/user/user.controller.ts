@@ -318,13 +318,18 @@ export class UserController {
   @Get(':address/rewards')
   @UseGuards(AuthGuard)
   async getRewards(@Param('address') address: string, @Query() query: any) {
-    let qb = RewardDetail.createQueryBuilder('rd');
+    let qb = RewardDetail.createQueryBuilder('rd').where(
+      'rd.userPubKey ILIKE :address',
+      { address },
+    );
 
     if (query.rewardType) {
-      qb = qb.andWhere(`rewardType = :rewardType`, {
+      qb = qb.andWhere(`rd.rewardType = :rewardType`, {
         rewardType: query.rewardType,
       });
     }
+
+    console.log(new Date(query.startDate));
 
     if (query.startDate || query.endDate) {
       qb = qb.andWhere('rd.createdAt BETWEEN :startDate AND :endDate', {
@@ -336,7 +341,6 @@ export class UserController {
     }
 
     return qb
-      .where('rd.userPubKey ILIKE :address', { address })
       .leftJoinAndMapOne('rd.nft', Nft, 'n', 'n.id = rd.nftId')
       .orderBy('rd.createdAt', 'DESC')
       .skip(+query.offset || 0)

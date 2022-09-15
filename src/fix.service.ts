@@ -38,22 +38,56 @@ export class FixService {
   }
 
   async fix() {
-    const rewards = await Reward.find({});
-    for (const reward of rewards) {
-      reward.tier1Holders = reward.tier1Holders.map((h) => h.toLowerCase());
-      reward.tier2Holders = reward.tier2Holders.map((h) => h.toLowerCase());
-      reward.tier3Holders = reward.tier3Holders.map((h) => h.toLowerCase());
-      reward.tier4Holders = reward.tier4Holders.map((h) => h.toLowerCase());
-      reward.tier5Holders = reward.tier5Holders.map((h) => h.toLowerCase());
-      reward.tier6Holders = reward.tier6Holders.map((h) => h.toLowerCase());
-      await reward.save();
+    const nfts = await Nft.find({ where: { rewardsMonths: 2 } });
+
+    console.log(nfts.length);
+
+    for (const nft of nfts) {
+      nft.rewardsMonths = 1;
+      await nft.save();
     }
 
-    const rewardDetails = await RewardDetail.find({});
-    for (const rewardDetail of rewardDetails) {
-      rewardDetail.userPubKey = rewardDetail.userPubKey.toLowerCase();
-      await rewardDetail.save();
+    const buybackReward = await Reward.findOne({
+      where: { rewardType: 'buyback' },
+    });
+
+    await RewardDetail.delete({ rewardId: buybackReward.id });
+
+    const zunaNFTs = await Nft.createQueryBuilder('Nfts')
+      .where('Nfts.collectionId = 1')
+      .leftJoinAndMapOne('Nfts.owner', User, 'Users', 'Users.id = Nfts.ownerId')
+      .getMany();
+    const collection = await Collection.findOne({
+      where: { id: 1 },
+      relations: ['owner'],
+    });
+
+    const rewardDetailsTobeCreated: RewardDetail[] = [];
+
+    for (const nft of zunaNFTs) {
+      if (nft.owner.id === collection.owner.id) {
+        continue;
+      }
+      const property = nft.properties.find(
+        (p) => p.name.toLowerCase() === 'tier',
+      );
+      if (!property) {
+        Logger.error('Tier property error:');
+        console.log(nft);
+        continue;
+      }
+      const rewardDetail = RewardDetail.create({
+        nftId: nft.id,
+        userPubKey: nft.owner.pubKey.toLowerCase(),
+        rewardId: buybackReward.id,
+        rewardTier: +nft.properties.find((p) => p.name.toLowerCase() === 'tier')
+          .value,
+        rewardType: 'buyback',
+        txHash: buybackReward.txHash,
+      });
+      rewardDetailsTobeCreated.push(rewardDetail);
     }
+    await RewardDetail.save(rewardDetailsTobeCreated);
   }
 
   async addNftThumbnail() {

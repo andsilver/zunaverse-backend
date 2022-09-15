@@ -17,12 +17,11 @@ export class RewardsController {
       where.rewardType = query.rewardType;
     }
 
-    if (query.start && query.end) {
-      where.createdAt = Between(new Date(query.start), new Date(query.end));
-    } else if (query.start) {
-      where.createdAt = Between(new Date(query.start), new Date());
-    } else if (query.end) {
-      where.createdAt = Between(new Date(2022, 9, 1), new Date(query.end));
+    if (query.startDate || query.endDate) {
+      where.createdAt = Between(
+        new Date(query.startDate || new Date(2022, 9, 1)),
+        new Date(query.endDate || new Date()),
+      );
     }
 
     const rewards = await Reward.find({
