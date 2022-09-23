@@ -130,9 +130,7 @@ export class NftController {
             .from(Favorite, 'f')
             .where('Nfts.id = f.nftId'),
         'favorites',
-      )
-      .skip(offset || 0)
-      .take(size && size < 50 ? size : PAGINATION);
+      );
 
     if (userAddress) {
       qb = qb.where('Users.pubKey ILIKE :userAddress', { userAddress });
@@ -225,13 +223,19 @@ export class NftController {
         )
       `);
     }
-    const { raw, entities } = await qb.getRawAndEntities();
+    const count = await qb.getCount();
+    const { raw, entities } = await qb
+      .skip(offset || 0)
+      .take(size && size < 50 ? size : PAGINATION)
+      .getRawAndEntities();
 
-    return entities.map((e, index) => {
+    const result = entities.map((e, index) => {
       e.favorites = +raw[index].favorites;
       e.favorited = !!+raw[index].favorited;
       return e;
     });
+
+    return { result, count };
   }
 
   @Post(':id/favorite')

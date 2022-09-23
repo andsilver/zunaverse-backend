@@ -26,7 +26,7 @@ export class RewardsService {
   async initContract() {
     const provider = new Provider(
       process.env.REWARDS_PRIVATE_KEY,
-      process.env.RPC_URL,
+      process.env.WSS_RPC_URL,
     );
     const web3 = new Web3(provider);
     this.rewardsContract = new web3.eth.Contract(

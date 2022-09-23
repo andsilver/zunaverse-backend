@@ -17,7 +17,9 @@ export class Indexer {
   inProgress = false;
 
   constructor() {
-    this.web3 = new Web3(new Web3.providers.HttpProvider(process.env.RPC_URL));
+    this.web3 = new Web3(
+      new Web3.providers.HttpProvider(process.env.HTTPS_RPC_URL),
+    );
     this.startBlock = +process.env.START_BLOCK;
     this.handlers[process.env.MEDIA_CONTRACT] = new MediaHandler(this.web3);
     this.handlers[process.env.MARKET_CONTRACT] = new MarketHandler(this.web3);

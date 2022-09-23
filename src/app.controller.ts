@@ -15,7 +15,9 @@ export class AppController {
   async getTopSellers() {
     const [featuredUsers, sellers, buyers, collections] = await Promise.all([
       User.find({
-        where: { featured: true },
+        order: {
+          id: 'asc',
+        },
         take: 20,
       }),
       Transaction.createQueryBuilder('t')
@@ -30,7 +32,7 @@ export class AppController {
         .orderBy('amount', 'DESC')
         .limit(20)
         .getRawMany(),
-      Collection.find({ where: { featured: true }, take: 20 }),
+      Collection.find({ order: { createdAt: 'ASC' }, take: 20 }),
     ]);
 
     const users = await User.find({
