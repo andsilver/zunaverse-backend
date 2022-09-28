@@ -181,10 +181,12 @@ export class RewardsService {
       (t) =>
         t.currency.toLowerCase() === process.env.WBNB_ADDRESS.toLowerCase(),
     );
-    let zunaAmount: any =
-      zunaTransactions.reduce((sum, t) => t.amount + sum, 0) / 40;
-    let wbnbAmount: any =
-      wbnbTransactions.reduce((sum, t) => t.amount + sum, 0) / 40;
+    let zunaAmount: any = (
+      zunaTransactions.reduce((sum, t) => t.amount + sum, 0) / 40
+    ).toFixed(2);
+    let wbnbAmount: any = (
+      wbnbTransactions.reduce((sum, t) => t.amount + sum, 0) / 40
+    ).toFixed(2);
 
     zunaAmount = Web3.utils.toWei(`${zunaAmount}`, 'gwei');
     wbnbAmount = Web3.utils.toWei(`${wbnbAmount}`);
