@@ -16,6 +16,8 @@ export class IndexingService implements OnApplicationBootstrap {
 
   @Cron('*/10 * * * * *')
   handleCron() {
-    this.indexer.index();
+    if (!process.env.NO_INDEXING) {
+      this.indexer.index();
+    }
   }
 }
