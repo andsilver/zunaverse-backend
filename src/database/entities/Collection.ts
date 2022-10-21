@@ -65,6 +65,8 @@ export class Collection extends PrimaryEntity {
   @Column({ default: false })
   featured: boolean;
 
+  postImages: string[] = [];
+
   async calculateMetrics() {
     this.items = await Nft.count({ where: { collectionId: this.id } });
     const ownersQuery = await Nft.createQueryBuilder('n')
@@ -101,5 +103,13 @@ export class Collection extends PrimaryEntity {
       this.floorPriceCurrency = null;
     }
     await this.save();
+  }
+
+  async loadPostImages() {
+    const nfts = await Nft.find({
+      where: { collectionId: this.id },
+      take: 3,
+    });
+    this.postImages = nfts.map((nft) => nft.thumbnail);
   }
 }

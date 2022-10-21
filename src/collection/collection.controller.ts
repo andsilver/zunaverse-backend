@@ -24,6 +24,7 @@ import {
   uploadBannerImageCloudinary,
   uploadImageCloudinary,
 } from 'src/shared/utils/cloudinary';
+import { Nft } from 'src/database/entities/Nft';
 
 @Controller('collection')
 export class CollectionController {
@@ -107,14 +108,18 @@ export class CollectionController {
 
   @Get(':id')
   async getCollection(@Param('id') id: number) {
-    return await Collection.findOne({ where: { id }, relations: ['owner'] });
+    const collection = await Collection.findOne({
+      where: { id },
+      relations: ['owner'],
+    });
+    return collection;
   }
 
   @Get('')
   async getCollections(@Query() query: any) {
     const { offset, owner } = query;
 
-    return await Collection.find({
+    const collections = await Collection.find({
       where: owner
         ? {
             owner: {
@@ -126,5 +131,11 @@ export class CollectionController {
       skip: +offset || 0,
       relations: ['owner'],
     });
+
+    for (const collection of collections) {
+      await collection.loadPostImages();
+    }
+
+    return collections;
   }
 }

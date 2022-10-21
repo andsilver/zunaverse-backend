@@ -4,6 +4,25 @@
     "inputs": [
       {
         "indexed": false,
+        "internalType": "uint256",
+        "name": "wbnbAmount",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "zunaAmount",
+        "type": "uint256"
+      }
+    ],
+    "name": "BuybackRewardsSwap",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
         "internalType": "uint8",
         "name": "version",
         "type": "uint8"
@@ -43,6 +62,24 @@
     ],
     "name": "StaticRewardsReleased",
     "type": "event"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "_controllerAddress",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "_paymentAddress",
+        "type": "address"
+      }
+    ],
+    "name": "config",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
   },
   {
     "inputs": [],
@@ -106,9 +143,63 @@
         "internalType": "address[][]",
         "name": "holders",
         "type": "address[][]"
+      },
+      {
+        "internalType": "uint256[]",
+        "name": "tiers",
+        "type": "uint256[]"
+      }
+    ],
+    "name": "releasePartialStaticRewards",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address[][]",
+        "name": "holders",
+        "type": "address[][]"
       }
     ],
     "name": "releaseStaticRewards",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "totalAmount",
+        "type": "uint256"
+      },
+      {
+        "internalType": "address[][]",
+        "name": "holders",
+        "type": "address[][]"
+      }
+    ],
+    "name": "releaseTier123BuybackRewards",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "totalAmount",
+        "type": "uint256"
+      },
+      {
+        "internalType": "address[][]",
+        "name": "holders",
+        "type": "address[][]"
+      }
+    ],
+    "name": "releaseTier456BuybackRewards",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
@@ -131,19 +222,6 @@
       }
     ],
     "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "address",
-        "name": "_controllerAddress",
-        "type": "address"
-      }
-    ],
-    "name": "setControllerAddress",
-    "outputs": [],
-    "stateMutability": "nonpayable",
     "type": "function"
   },
   {
@@ -174,6 +252,25 @@
     ],
     "name": "setSwapRouter",
     "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "wbnbAmount",
+        "type": "uint256"
+      }
+    ],
+    "name": "swapWBNBforBuyback",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
     "stateMutability": "nonpayable",
     "type": "function"
   },

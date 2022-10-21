@@ -32,7 +32,11 @@ export class AppController {
         .orderBy('amount', 'DESC')
         .limit(20)
         .getRawMany(),
-      Collection.find({ order: { createdAt: 'ASC' }, take: 20 }),
+      Collection.find({
+        order: { createdAt: 'ASC' },
+        relations: ['owner'],
+        take: 20,
+      }),
     ]);
 
     const users = await User.find({
@@ -45,14 +49,20 @@ export class AppController {
       },
     });
 
+    for (const collection of collections) {
+      await collection.loadPostImages();
+    }
+
     return {
       featuredUsers,
-      sellers: sellers.map((s) =>
-        users.find((u) => u.pubKey === s.seller.toLowerCase()),
-      ),
-      buyers: buyers.map((s) =>
-        users.find((u) => u.pubKey === s.buyer.toLowerCase()),
-      ),
+      sellers: sellers.map((s) => ({
+        ...users.find((u) => u.pubKey === s.seller.toLowerCase()),
+        ...s,
+      })),
+      buyers: buyers.map((s) => ({
+        ...users.find((u) => u.pubKey === s.buyer.toLowerCase()),
+        ...s,
+      })),
       collections,
     };
   }

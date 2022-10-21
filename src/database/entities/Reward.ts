@@ -30,10 +30,25 @@ export class Reward extends PrimaryEntity {
   @Column({ nullable: true })
   zunaAmount: string;
 
+  @Column({ nullable: true })
+  swappedZunaAmount: string;
+
   // for buyback reward
   @Column({ type: 'json', nullable: true })
   transactionIds: number[];
 
   @Column()
   txHash: string;
+
+  @Column({ nullable: true })
+  swapTxHash: string;
+
+  @Column({ nullable: true })
+  firstRewardsTxHash: string;
+
+  @Column({ nullable: true })
+  secondRewardsTxHash: string;
+
+  @Column({ default: false })
+  pending: boolean;
 }
