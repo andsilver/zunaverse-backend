@@ -65,6 +65,9 @@ export class Collection extends PrimaryEntity {
   @Column({ default: false })
   featured: boolean;
 
+  @Column({ nullable: true })
+  category: string;
+
   postImages: string[] = [];
 
   async calculateMetrics() {

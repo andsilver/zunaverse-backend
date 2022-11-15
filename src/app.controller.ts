@@ -1,4 +1,4 @@
-import { Controller, Get } from '@nestjs/common';
+import { Controller, Get, Query } from '@nestjs/common';
 import { In } from 'typeorm';
 import { Collection } from './database/entities/Collection';
 import { Transaction } from './database/entities/Transaction';
@@ -12,26 +12,14 @@ export class AppController {
   }
 
   @Get('home')
-  async getTopSellers() {
-    const [featuredUsers, sellers, buyers, collections] = await Promise.all([
+  async getHomeData() {
+    const [featuredUsers, collections] = await Promise.all([
       User.find({
         order: {
           id: 'asc',
         },
         take: 20,
       }),
-      Transaction.createQueryBuilder('t')
-        .select('SUM(usd) as amount, seller')
-        .groupBy('seller')
-        .orderBy('amount', 'DESC')
-        .limit(20)
-        .getRawMany(),
-      Transaction.createQueryBuilder('t')
-        .select('SUM(usd) as amount, buyer')
-        .groupBy('buyer')
-        .orderBy('amount', 'DESC')
-        .limit(20)
-        .getRawMany(),
       Collection.find({
         order: { createdAt: 'ASC' },
         relations: ['owner'],
@@ -39,31 +27,67 @@ export class AppController {
       }),
     ]);
 
-    const users = await User.find({
-      where: {
-        pubKey: In(
-          [...sellers, ...buyers].map((u) =>
-            (u.seller || u.buyer).toLowerCase(),
-          ),
-        ),
-      },
-    });
-
     for (const collection of collections) {
       await collection.loadPostImages();
     }
 
     return {
       featuredUsers,
-      sellers: sellers.map((s) => ({
-        ...users.find((u) => u.pubKey === s.seller.toLowerCase()),
-        ...s,
-      })),
-      buyers: buyers.map((s) => ({
-        ...users.find((u) => u.pubKey === s.buyer.toLowerCase()),
-        ...s,
-      })),
       collections,
     };
+  }
+
+  @Get('top-sellers')
+  async getTopSellers(@Query() query: any) {
+    const { currency } = query;
+    const currencies = {
+      WBNB: process.env.WBNB_ADDRESS,
+      ZUNA: process.env.ZUNA_ADDRESS,
+    };
+    const sellers = await Transaction.createQueryBuilder('t')
+      .where('currency = :currency', { currency: currencies[currency] })
+      .select('SUM(amount) as amount, SUM(usd) as usd, seller')
+      .groupBy('seller')
+      .orderBy('amount', 'DESC')
+      .limit(20)
+      .getRawMany();
+
+    const users = await User.find({
+      where: {
+        pubKey: In(sellers.map((u) => u.seller.toLowerCase())),
+      },
+    });
+
+    return sellers.map((s) => ({
+      ...users.find((u) => u.pubKey === s.seller.toLowerCase()),
+      ...s,
+    }));
+  }
+
+  @Get('top-buyers')
+  async getTopBuyers(@Query() query: any) {
+    const { currency } = query;
+    const currencies = {
+      WBNB: process.env.WBNB_ADDRESS,
+      ZUNA: process.env.ZUNA_ADDRESS,
+    };
+    const buyers = await Transaction.createQueryBuilder('t')
+      .where('currency = :currency', { currency: currencies[currency] })
+      .select('SUM(amount) as amount, SUM(usd) as usd, buyer')
+      .groupBy('buyer')
+      .orderBy('amount', 'DESC')
+      .limit(20)
+      .getRawMany();
+
+    const users = await User.find({
+      where: {
+        pubKey: In(buyers.map((u) => u.buyer.toLowerCase())),
+      },
+    });
+
+    return buyers.map((s) => ({
+      ...users.find((u) => u.pubKey === s.buyer.toLowerCase()),
+      ...s,
+    }));
   }
 }

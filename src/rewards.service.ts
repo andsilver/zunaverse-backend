@@ -20,9 +20,7 @@ export class RewardsService {
   controllerAddress: string;
 
   constructor() {
-    if (false) {
-      this.initContract();
-    }
+    // this.initContract();
   }
 
   async initContract() {

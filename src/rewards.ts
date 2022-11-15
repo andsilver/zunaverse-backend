@@ -11,7 +11,7 @@ async function bootstrap() {
     const rewardsHandler = appContext.get(RewardsService);
     Logger.log('Started Reward...');
     rewardsHandler
-      .releaseBuybackRewards()
+      .releaseStaticRewards()
       .then(() => Logger.log('Finished'))
       .catch((err) => Logger.error(err, 'Failed!'))
       .finally(() => {

@@ -20,7 +20,7 @@
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json",
-    "reward:buyback": "NO_INDEXING=true ts-node -r tsconfig-paths/register src/rewards.ts"
+    "reward": "NO_INDEXING=true ts-node -r tsconfig-paths/register src/rewards.ts"
   },
   "dependencies": {
     "@nestjs/common": "^8.0.0",

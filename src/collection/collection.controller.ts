@@ -13,7 +13,7 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import { FileFieldsInterceptor } from '@nestjs/platform-express';
-import { ILike } from 'typeorm';
+import { FindOptionsWhere, ILike } from 'typeorm';
 import { PAGINATION } from 'src/consts';
 import { Collection } from 'src/database/entities/Collection';
 import { User } from 'src/database/entities/User';
@@ -24,8 +24,6 @@ import {
   uploadBannerImageCloudinary,
   uploadImageCloudinary,
 } from 'src/shared/utils/cloudinary';
-import { Nft } from 'src/database/entities/Nft';
-
 @Controller('collection')
 export class CollectionController {
   constructor(private cloudinary: CloudinaryService) {}
@@ -117,19 +115,32 @@ export class CollectionController {
 
   @Get('')
   async getCollections(@Query() query: any) {
-    const { offset, owner } = query;
+    const { offset, owner, orderBy, order, category, search } = query;
+
+    const where: FindOptionsWhere<Collection> = {};
+
+    if (owner) {
+      where.owner = {
+        pubKey: ILike(owner),
+      };
+    }
+
+    if (category) {
+      where.category = category;
+    }
+
+    if (search) {
+      where.name = ILike(`%${search}%`);
+    }
 
     const collections = await Collection.find({
-      where: owner
-        ? {
-            owner: {
-              pubKey: ILike(owner),
-            },
-          }
-        : {},
+      where,
       take: PAGINATION,
       skip: +offset || 0,
       relations: ['owner'],
+      order: {
+        [orderBy || 'createdAt']: order || 'ASC',
+      },
     });
 
     for (const collection of collections) {

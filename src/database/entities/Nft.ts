@@ -146,7 +146,7 @@ export class Nft extends PrimaryEntity {
 
     if (file.size > 20971520) {
       const outputpath = `${process.env.UPLOAD_FOLDER}/${this.tokenId}_resized`;
-      await sharp(downloadPath).resize(400, null).toFile(outputpath);
+      await sharp(downloadPath).resize(600, null).toFile(outputpath);
       fs.unlinkSync(downloadPath);
       downloadPath = outputpath;
     }
