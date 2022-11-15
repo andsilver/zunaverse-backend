@@ -1,5 +1,5 @@
 import { Controller, Get, Query } from '@nestjs/common';
-import { In } from 'typeorm';
+import { In, IsNull, Not } from 'typeorm';
 import { Collection } from './database/entities/Collection';
 import { Transaction } from './database/entities/Transaction';
 import { User } from './database/entities/User';
@@ -19,8 +19,14 @@ export class AppController {
           id: 'asc',
         },
         take: 20,
+        where: {
+          avatar: Not(IsNull()),
+        },
       }),
       Collection.find({
+        where: {
+          featured: true,
+        },
         order: { createdAt: 'ASC' },
         relations: ['owner'],
         take: 20,
