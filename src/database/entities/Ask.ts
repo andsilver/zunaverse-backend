@@ -11,9 +11,6 @@ export class Ask extends PrimaryEntity {
   amount: string;
 
   @Column({ nullable: true })
-  nftId: number;
-
-  @Column({ nullable: true })
   tokenId: string;
 
   @Column({ nullable: true })

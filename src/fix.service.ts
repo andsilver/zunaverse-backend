@@ -43,125 +43,13 @@ export class FixService {
   }
 
   async fix() {
-    await this.convertAddressesIntoLowerCaseAndInsertTokenIdAddress();
     // const favorites = await Favorite.find({});
-
     // for (const f of favorites) {
     //   const nft = await Nft.findOneBy({ id: f.nftId });
-
     //   f.tokenId = nft.tokenId;
     //   f.tokenAddress = nft.tokenAddress;
     //   await f.save();
     // }
-  }
-
-  async convertAddressesIntoLowerCaseAndInsertTokenIdAddress() {
-    const users = await User.find();
-
-    users.forEach((u) => {
-      u.pubKey = u.pubKey.toLowerCase();
-    });
-    await User.save(users);
-
-    const nfts = await Nft.find();
-    nfts.forEach((nft) => {
-      nft.tokenAddress = nft.tokenAddress.toLowerCase();
-    });
-    await Nft.save(nfts);
-
-    const favorites = await Favorite.find({});
-
-    for (const f of favorites) {
-      const nft = await Nft.findOneBy({ id: f.nftId });
-
-      if (!nft || (nft.tokenId && nft.tokenAddress)) {
-        continue;
-      }
-
-      f.tokenId = nft.tokenId;
-      f.tokenAddress = nft.tokenAddress;
-      f.userAddress = f.userAddress.toLowerCase();
-    }
-    await Favorite.save(favorites);
-
-    const activities = await Activity.find();
-
-    for (const act of activities) {
-      const nft = await Nft.findOneBy({ id: act.nft });
-
-      if (!nft || (nft.tokenId && nft.tokenAddress)) {
-        continue;
-      }
-      act.tokenAddress = nft.tokenAddress;
-      act.tokenId = nft.tokenId;
-      act.userAddress = act.userAddress.toLowerCase();
-      act.receiver && (act.receiver = act.receiver.toLowerCase());
-    }
-    await Activity.save(activities);
-
-    const asks = await Ask.find();
-
-    for (const ask of asks) {
-      const nft = await Nft.findOneBy({ id: ask.nftId });
-
-      if (!nft || (nft.tokenId && nft.tokenAddress)) {
-        continue;
-      }
-
-      ask.tokenId = nft.tokenId;
-      ask.tokenAddress = nft.tokenAddress;
-      ask.owner = ask.owner.toLowerCase();
-    }
-    await Ask.save(asks);
-
-    const bids = await Bid.find();
-
-    for (const bid of bids) {
-      const nft = await Nft.findOneBy({ id: bid.nftId });
-
-      if (!nft || (nft.tokenId && nft.tokenAddress)) {
-        continue;
-      }
-      bid.tokenId = nft.tokenId;
-      bid.tokenAddress = nft.tokenAddress;
-      bid.bidder = bid.bidder.toLowerCase();
-      bid.currency = bid.currency.toLowerCase();
-    }
-    await Bid.save(bids);
-
-    const transactions = await Transaction.find({});
-
-    for (const t of transactions) {
-      const nft = await Nft.findOneBy({ id: t.nftId });
-
-      if (!nft || (nft.tokenId && nft.tokenAddress)) {
-        continue;
-      }
-
-      t.tokenId = nft.tokenId;
-      t.tokenAddress = nft.tokenAddress;
-      t.buyer = t.buyer.toLowerCase();
-      t.seller = t.seller.toLowerCase();
-      t.currency = t.currency.toLowerCase();
-    }
-    await Transaction.save(transactions);
-
-    const notifications = await Notification.find({});
-
-    for (const n of notifications) {
-      if (!n.nftId) {
-        continue;
-      }
-      const nft = await Nft.findOneBy({ id: n.nftId });
-
-      if (!nft || (nft.tokenId && nft.tokenAddress)) {
-        continue;
-      }
-
-      n.tokenAddress = nft.tokenAddress;
-      n.tokenId = nft.tokenId;
-    }
-    await Notification.save(notifications);
   }
 
   async addNftThumbnail() {

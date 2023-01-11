@@ -32,7 +32,6 @@ import {
 } from 'src/shared/utils/cloudinary';
 import { RewardDetail } from 'src/database/entities/RewardDetail';
 import { MoralisService } from 'src/shared/services/moralis.service';
-import { Collection } from 'src/database/entities/Collection';
 
 @Controller('user')
 export class UserController {
@@ -416,6 +415,16 @@ export class UserController {
         return n;
       }),
     );
+
+    if (!result.length) {
+      return {
+        result,
+        page: res.page,
+        total: res.total,
+        cursor: res.cursor,
+      };
+    }
+
     const qb = Nft.createQueryBuilder('Nfts')
       .where(
         `(Nfts.tokenAddress, Nfts.tokenId) IN (${result

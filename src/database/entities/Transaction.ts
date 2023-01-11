@@ -14,9 +14,6 @@ export class Transaction extends PrimaryEntity {
   usd: number;
 
   @Column({ nullable: true })
-  nftId: number;
-
-  @Column({ nullable: true })
   tokenId: string;
 
   @Column({ nullable: true })

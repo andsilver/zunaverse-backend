@@ -22,9 +22,6 @@ export class Activity extends LowercaseAddressEntityAbstract {
   receiver: string;
 
   @Column({ nullable: true })
-  nft: number;
-
-  @Column({ nullable: true })
   tokenId: string;
 
   @Column({ nullable: true })

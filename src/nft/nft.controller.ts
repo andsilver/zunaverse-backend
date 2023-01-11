@@ -615,7 +615,7 @@ export class NftController {
     }
 
     if (body.instantSale) {
-      let ask = await Ask.findOneBy({ nftId: nft.id });
+      let ask = await Ask.findOneBy(nft.tokenIdentity);
 
       if (!ask) {
         ask = Ask.create({

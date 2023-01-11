@@ -5,9 +5,6 @@ import { PrimaryEntity } from './primary-entity';
 @Index(['tokenId', 'tokenAddress'])
 export class Bid extends PrimaryEntity {
   @Column({ nullable: true })
-  nftId: number;
-
-  @Column({ nullable: true })
   tokenId: string;
 
   @Column({ nullable: true })
