@@ -89,32 +89,32 @@ export class RewardsService {
       }
       return;
     }
-    // const result1 = await this.releasePartialStatic(
-    //   [tier1Owners, tier2Owners, tier3Owners],
-    //   [1, 2, 3],
-    // );
-    // const reward = Reward.create({
-    //   tier1Holders: tier1Owners,
-    //   tier2Holders: tier2Owners,
-    //   tier3Holders: tier3Owners,
-    //   tier4Holders: tier4Owners,
-    //   tier5Holders: tier5Owners,
-    //   tier6Holders: tier6Owners,
-    //   rewardType: 'static',
-    //   txHash: '',
-    //   pending: true,
-    //   firstRewardsTxHash: result1.transactionHash,
-    // });
-    // await reward.save();
+    const result1 = await this.releasePartialStatic(
+      [tier1Owners, tier2Owners, tier3Owners],
+      [1, 2, 3],
+    );
+    const reward = Reward.create({
+      tier1Holders: tier1Owners,
+      tier2Holders: tier2Owners,
+      tier3Holders: tier3Owners,
+      tier4Holders: tier4Owners,
+      tier5Holders: tier5Owners,
+      tier6Holders: tier6Owners,
+      rewardType: 'static',
+      txHash: '',
+      pending: true,
+      firstRewardsTxHash: result1.transactionHash,
+    });
+    await reward.save();
 
-    // const result2 = await this.releasePartialStatic(
-    //   [tier4Owners, tier5Owners, tier6Owners],
-    //   [4, 5, 6],
-    // );
-    // reward.secondRewardsTxHash = result2.transactionHash;
-    // await reward.save();
+    const result2 = await this.releasePartialStatic(
+      [tier4Owners, tier5Owners, tier6Owners],
+      [4, 5, 6],
+    );
+    reward.secondRewardsTxHash = result2.transactionHash;
+    await reward.save();
 
-    // await this.saveStaticRewardsHistory(reward, zunaNFTs, collection);
+    await this.saveStaticRewardsHistory(reward, zunaNFTs, collection);
   }
 
   @Cron('0 0 * * MON')

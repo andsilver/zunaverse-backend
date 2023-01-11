@@ -379,12 +379,7 @@ export class UserController {
     }
 
     return qb
-      .leftJoinAndMapOne(
-        'rd.nft',
-        Nft,
-        'n',
-        'n.tokenId = rd.tokenId AND n.tokenAddress = rd.tokenAddress',
-      )
+      .leftJoinAndMapOne('rd.nft', Nft, 'n', 'n.id = rd.nftId')
       .orderBy('rd.createdAt', 'DESC')
       .skip(+query.offset || 0)
       .take(PAGINATION)
