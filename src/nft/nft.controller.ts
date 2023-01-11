@@ -108,6 +108,7 @@ export class NftController {
       properties,
       offset,
       size,
+      currency,
     } = query;
 
     let qb = Nft.createQueryBuilder('Nfts')
@@ -201,6 +202,12 @@ export class NftController {
             ),
         'favorited',
       );
+    }
+
+    if (currency) {
+      qb.andWhere('Asks.currency = :currency', {
+        currency: currency.toLowerCase(),
+      });
     }
 
     if (properties) {
