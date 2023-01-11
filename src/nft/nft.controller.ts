@@ -427,7 +427,7 @@ export class NftController {
       })
       .leftJoinAndMapOne('a.user', User, 'u', 'u.pubKey = a.userAddress')
       .orderBy('a.createdAt', 'DESC')
-      .offset(+offset || 0)
+      .skip(+offset || 0)
       .take(PAGINATION)
       .getMany();
 

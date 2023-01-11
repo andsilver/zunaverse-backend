@@ -33,7 +33,7 @@ export class ActivityController {
         'Nfts.tokenId = a.tokenId AND Nfts.tokenAddress = a.tokenAddress',
       )
       .orderBy('a.createdAt', 'DESC')
-      .offset(+offset || 0)
+      .skip(+offset || 0)
       .take(PAGINATION);
 
     if (address) {
