@@ -1,4 +1,12 @@
-import { Entity, Column, Index, OneToMany, ILike } from 'typeorm';
+import {
+  Entity,
+  Column,
+  Index,
+  OneToMany,
+  BeforeInsert,
+  BeforeUpdate,
+} from 'typeorm';
+import Web3 from 'web3';
 import { Collection } from './Collection';
 import { PrimaryEntity } from './primary-entity';
 
@@ -60,6 +68,15 @@ export class User extends PrimaryEntity {
   @Column({ type: 'boolean', default: false })
   admin = false;
 
+  @BeforeInsert()
+  @BeforeUpdate()
+  validatePubkey() {
+    if (Web3.utils.isAddress(this.pubKey)) {
+      return;
+    }
+    throw new Error('The user pub key is not a blockchain address');
+  }
+
   followers = 0;
   followings = 0;
   following = false;
@@ -69,7 +86,7 @@ export class User extends PrimaryEntity {
     if (!pubKey) {
       return null;
     }
-    return User.findOne({ where: { pubKey: ILike(pubKey) } });
+    return User.findOneBy({ pubKey: pubKey.toLowerCase() });
   }
 
   static async findOrCreate(pubKey: string) {
@@ -81,8 +98,9 @@ export class User extends PrimaryEntity {
     if (user) {
       return user;
     }
-    user = new User();
-    user.pubKey = pubKey.toLowerCase();
+    user = User.create({
+      pubKey,
+    });
     await user.save();
     return user;
   }

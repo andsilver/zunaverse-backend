@@ -18,6 +18,7 @@ import { ReportModule } from './report/report.module';
 import { RewardsService } from './rewards.service';
 import { RewardsModule } from './rewards/rewards.module';
 import { SharedModule } from './shared/shared.module';
+import { StreamModule } from './stream/stream.module';
 import { UserModule } from './user/user.module';
 
 @Module({
@@ -36,6 +37,7 @@ import { UserModule } from './user/user.module';
     NotificationModule,
     RewardsModule,
     SharedModule,
+    StreamModule,
   ],
   controllers: [AppController],
   providers: [AppService, IndexingService, FixService, RewardsService],

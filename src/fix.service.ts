@@ -1,9 +1,14 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { IsNull } from 'typeorm';
 import Web3 from 'web3';
+import { Activity } from './database/entities/Activity';
+import { Ask } from './database/entities/Ask';
+import { Bid } from './database/entities/Bid';
 
 import { Collection } from './database/entities/Collection';
+import { Favorite } from './database/entities/Favorite';
 import { Nft } from './database/entities/Nft';
+import { Notification } from './database/entities/Notification';
 import { Reward } from './database/entities/Reward';
 import { RewardDetail } from './database/entities/RewardDetail';
 import { Transaction } from './database/entities/Transaction';
@@ -38,56 +43,103 @@ export class FixService {
   }
 
   async fix() {
-    const nfts = await Nft.find({ where: { rewardsMonths: 2 } });
+    await this.convertAddressesIntoLowerCaseAndInsertTokenIdAddress();
+    // const favorites = await Favorite.find({});
 
-    console.log(nfts.length);
+    // for (const f of favorites) {
+    //   const nft = await Nft.findOneBy({ id: f.nftId });
 
-    for (const nft of nfts) {
-      nft.rewardsMonths = 1;
-      await nft.save();
+    //   f.tokenId = nft.tokenId;
+    //   f.tokenAddress = nft.tokenAddress;
+    //   await f.save();
+    // }
+  }
+
+  async convertAddressesIntoLowerCaseAndInsertTokenIdAddress() {
+    const users = await User.find();
+
+    users.forEach((u) => {
+      u.pubKey = u.pubKey.toLowerCase();
+    });
+    await User.save(users);
+
+    const nfts = await Nft.find();
+    nfts.forEach((nft) => {
+      nft.tokenAddress = nft.tokenAddress.toLowerCase();
+    });
+    await Nft.save(nfts);
+
+    const favorites = await Favorite.find({});
+
+    for (const f of favorites) {
+      const nft = await Nft.findOneBy({ id: f.nftId });
+
+      f.tokenId = nft.tokenId;
+      f.tokenAddress = nft.tokenAddress;
+      f.userAddress = f.userAddress.toLowerCase();
     }
+    await Favorite.save(favorites);
 
-    const buybackReward = await Reward.findOne({
-      where: { rewardType: 'buyback' },
-    });
+    const activities = await Activity.find();
 
-    await RewardDetail.delete({ rewardId: buybackReward.id });
+    for (const act of activities) {
+      const nft = await Nft.findOneBy({ id: act.nft });
 
-    const zunaNFTs = await Nft.createQueryBuilder('Nfts')
-      .where('Nfts.collectionId = 1')
-      .leftJoinAndMapOne('Nfts.owner', User, 'Users', 'Users.id = Nfts.ownerId')
-      .getMany();
-    const collection = await Collection.findOne({
-      where: { id: 1 },
-      relations: ['owner'],
-    });
-
-    const rewardDetailsTobeCreated: RewardDetail[] = [];
-
-    for (const nft of zunaNFTs) {
-      if (nft.owner.id === collection.owner.id) {
+      if (!nft) {
         continue;
       }
-      const property = nft.properties.find(
-        (p) => p.name.toLowerCase() === 'tier',
-      );
-      if (!property) {
-        Logger.error('Tier property error:');
-        console.log(nft);
+      act.tokenAddress = nft.tokenAddress;
+      act.tokenId = nft.tokenId;
+      act.userAddress = act.userAddress.toLowerCase();
+      act.receiver && (act.receiver = act.receiver.toLowerCase());
+    }
+    await Activity.save(activities);
+
+    const asks = await Ask.find();
+
+    for (const ask of asks) {
+      const nft = await Nft.findOneBy({ id: ask.nftId });
+      ask.tokenId = nft.tokenId;
+      ask.tokenAddress = nft.tokenAddress;
+      ask.owner = ask.owner.toLowerCase();
+    }
+    await Ask.save(asks);
+
+    const bids = await Bid.find();
+
+    for (const bid of bids) {
+      const nft = await Nft.findOneBy({ id: bid.nftId });
+      bid.tokenId = nft.tokenId;
+      bid.tokenAddress = nft.tokenAddress;
+      bid.bidder = bid.bidder.toLowerCase();
+      bid.currency = bid.currency.toLowerCase();
+    }
+    await Bid.save(bids);
+
+    const transactions = await Transaction.find({});
+
+    for (const t of transactions) {
+      const nft = await Nft.findOneBy({ id: t.nftId });
+      t.tokenId = nft.tokenId;
+      t.tokenAddress = nft.tokenAddress;
+      t.buyer = t.buyer.toLowerCase();
+      t.seller = t.seller.toLowerCase();
+      t.currency = t.currency.toLowerCase();
+    }
+    await Transaction.save(transactions);
+
+    const notifications = await Notification.find({});
+
+    for (const n of notifications) {
+      if (!n.nftId) {
         continue;
       }
-      const rewardDetail = RewardDetail.create({
-        nftId: nft.id,
-        userPubKey: nft.owner.pubKey.toLowerCase(),
-        rewardId: buybackReward.id,
-        rewardTier: +nft.properties.find((p) => p.name.toLowerCase() === 'tier')
-          .value,
-        rewardType: 'buyback',
-        txHash: buybackReward.txHash,
-      });
-      rewardDetailsTobeCreated.push(rewardDetail);
+      const nft = await Nft.findOneBy({ id: n.nftId });
+
+      n.tokenAddress = nft.tokenAddress;
+      n.tokenId = nft.tokenId;
     }
-    await RewardDetail.save(rewardDetailsTobeCreated);
+    await Notification.save(notifications);
   }
 
   async addNftThumbnail() {

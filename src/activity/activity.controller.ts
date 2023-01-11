@@ -8,31 +8,38 @@ import { User } from 'src/database/entities/User';
 export class ActivityController {
   @Get()
   async filterActivities(@Query() query: any) {
-    const { offset, address, categories, collectionId } = query;
+    const { offset, categories, collectionId } = query;
+    const address = query.address
+      ? (query.address as string).toLowerCase()
+      : '';
 
     let qb = Activity.createQueryBuilder('a')
       .leftJoinAndMapOne(
         'a.user',
         User,
         'Users1',
-        'Users1.pubKey ILIKE a.userAddress',
+        'Users1.pubKey = a.userAddress',
       )
       .leftJoinAndMapOne(
         'a.receiver',
         User,
         'Users2',
-        'Users2.pubKey ILIKE a.receiver',
+        'Users2.pubKey = a.receiver',
       )
-      .leftJoinAndMapOne('a.nft', Nft, 'Nfts', 'Nfts.id = a.nft')
+      .leftJoinAndMapOne(
+        'a.nft',
+        Nft,
+        'Nfts',
+        'Nfts.tokenId = a.tokenId AND Nfts.tokenAddress = a.tokenAddress',
+      )
       .orderBy('a.createdAt', 'DESC')
       .offset(+offset || 0)
       .take(PAGINATION);
 
     if (address) {
-      qb = qb.where(
-        '(a.userAddress ILIKE :address OR a.receiver ILIKE :address)',
-        { address },
-      );
+      qb = qb.where('(a.userAddress = :address OR a.receiver = :address)', {
+        address,
+      });
     }
 
     if (collectionId) {

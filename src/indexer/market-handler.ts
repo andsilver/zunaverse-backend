@@ -10,7 +10,6 @@ import { Notification } from 'src/database/entities/Notification';
 import { User } from 'src/database/entities/User';
 import { Transaction } from 'src/database/entities/Transaction';
 import { Bid } from 'src/database/entities/Bid';
-import { ILike } from 'typeorm';
 import { Collection } from 'src/database/entities/Collection';
 import { fetchCoins } from 'src/shared/utils/coingecko';
 import {
@@ -74,7 +73,10 @@ export class MarketHandler {
       const tokenId = Web3.utils.toHex(eventData.tokenId).toString();
 
       const nft = await Nft.findOne({
-        where: { tokenId },
+        where: {
+          tokenId,
+          tokenAddress: process.env.MEDIA_CONTRACT.toLowerCase(),
+        },
         relations: ['owner'],
       });
 
@@ -107,11 +109,11 @@ export class MarketHandler {
         amount: +activity.amount,
         currency: activity.currency,
         txHash: activity.txHash,
-        nftId: nft.id,
         collectionId: nft.collectionId,
         buyer,
         seller,
         usd,
+        ...nft.tokenIdentity,
       }).save();
 
       const user = await User.findByPubKey(seller);
@@ -119,22 +121,22 @@ export class MarketHandler {
       const notification = Notification.create({
         user,
         text: 'One of your nfts has been sold.',
-        nftId: nft.id,
         metadata: {
           activityId: activity.id,
-          from: buyer,
+          from: buyer.toLowerCase(),
           offer: {
             amount: activity.amount,
             currency: activity.currency,
           },
           txHash: log.transactionIndex,
         },
+        ...nft.tokenIdentity,
       });
       await notification.save();
 
       await Bid.delete({
-        bidder: ILike(buyer),
-        nftId: nft.id,
+        bidder: (buyer as string).toLowerCase(),
+        ...nft.tokenIdentity,
       });
 
       const collection = await Collection.findOneBy({ id: nft.collectionId });
@@ -165,7 +167,10 @@ export class MarketHandler {
       const tokenId = Web3.utils.toHex(eventData.tokenId).toString();
 
       const nft = await Nft.findOne({
-        where: { tokenId },
+        where: {
+          tokenId,
+          tokenAddress: process.env.MEDIA_CONTRACT.toLowerCase(),
+        },
         relations: ['owner'],
       });
 
@@ -198,11 +203,11 @@ export class MarketHandler {
         amount: +activity.amount,
         currency: activity.currency,
         txHash: activity.txHash,
-        nftId: nft.id,
         collectionId: nft.collectionId,
         buyer,
         seller,
         usd,
+        ...nft.tokenIdentity,
       }).save();
 
       const user = await User.findByPubKey(buyer);
@@ -210,22 +215,22 @@ export class MarketHandler {
       const notification = Notification.create({
         user,
         text: 'One of your offers has been accepted.',
-        nftId: nft.id,
         metadata: {
           activityId: activity.id,
-          from: seller,
+          from: seller.toLowerCase(),
           offer: {
             amount: activity.amount,
             currency: activity.currency,
           },
           txHash: log.transactionIndex,
         },
+        ...nft.tokenIdentity,
       });
       await notification.save();
 
       await Bid.delete({
-        bidder: ILike(buyer),
-        nftId: nft.id,
+        bidder: (buyer as string).toLowerCase(),
+        ...nft.tokenIdentity,
       });
       const collection = await Collection.findOneBy({ id: nft.collectionId });
 

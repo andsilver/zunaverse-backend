@@ -28,9 +28,13 @@ export class BidController {
     if (!bid) {
       throw new UnprocessableEntityException('The bid does not exist');
     }
+
     await bid.remove();
 
-    const nft = await Nft.findOneBy({ id: bid.nftId });
+    const nft = await Nft.findOneBy({
+      tokenId: bid.tokenId,
+      tokenAddress: bid.tokenAddress,
+    });
 
     const activity = new Activity();
     activity.amount = bid.amount;
@@ -38,7 +42,8 @@ export class BidController {
     activity.createdAt = Date.now().toString();
     activity.event = ACTIVITY_EVENTS.BIDS.CANCEL_BID;
     activity.userAddress = user.pubKey;
-    activity.nft = bid.nftId;
+    activity.tokenId = bid.tokenId;
+    activity.tokenAddress = bid.tokenAddress;
     activity.collectionId = nft.id;
     await activity.save();
   }

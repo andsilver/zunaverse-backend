@@ -6,11 +6,7 @@ import {
   Post,
   UnauthorizedException,
 } from '@nestjs/common';
-import {
-  recoverPersonalSignature,
-  recoverTypedSignature_v4,
-} from 'eth-sig-util';
-import { bufferToHex } from 'ethereumjs-util';
+import { recoverTypedSignature_v4 } from 'eth-sig-util';
 import Web3 from 'web3';
 import jwt from 'jsonwebtoken';
 
@@ -35,7 +31,7 @@ export class AuthController {
 
       if (!user) {
         user = User.create({
-          pubKey: pubKey.toLowerCase(),
+          pubKey,
           nonce,
         });
       } else {

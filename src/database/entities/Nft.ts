@@ -12,12 +12,17 @@ import { User } from './User';
 import { downloadFile } from 'src/shared/utils/download-file';
 import { uploadNftImageCloudinary } from 'src/shared/utils/cloudinary';
 import { Logger } from '@nestjs/common';
+import Moralis from 'moralis';
+import { addNftAddressToStream, getChainId } from 'src/shared/utils/moralis';
 
 @Entity('Nfts')
+@Index(['tokenId', 'tokenAddress'])
 export class Nft extends PrimaryEntity {
   @Column()
-  @Index({ unique: true })
   tokenId: string;
+
+  @Column({ default: process.env.MEDIA_CONTRACT.toLowerCase() })
+  tokenAddress: string;
 
   @Column()
   tokenUri: string;
@@ -25,7 +30,7 @@ export class Nft extends PrimaryEntity {
   @Column()
   name: string;
 
-  @Column()
+  @Column({ nullable: true })
   description: string;
 
   @Column({ nullable: true })
@@ -40,7 +45,7 @@ export class Nft extends PrimaryEntity {
   @Column({ nullable: true })
   thumbnail: string;
 
-  @Column()
+  @Column({ nullable: true })
   image: string;
 
   @ManyToOne(() => User)
@@ -81,11 +86,11 @@ export class Nft extends PrimaryEntity {
   collection: Collection;
 
   async burn() {
-    await Bid.delete({ nftId: this.id });
-    await Activity.delete({ nft: this.id });
-    await Ask.delete({ nftId: this.id });
-    await Favorite.delete({ nftId: this.id });
-    await Notification.delete({ nftId: this.id });
+    await Bid.delete(this.tokenIdentity);
+    await Activity.delete(this.tokenIdentity);
+    await Ask.delete(this.tokenIdentity);
+    await Favorite.delete(this.tokenIdentity);
+    await Notification.delete(this.tokenIdentity);
 
     if (this.collectionId) {
       const collection = await Collection.findOneBy({
@@ -99,6 +104,9 @@ export class Nft extends PrimaryEntity {
 
   @BeforeInsert()
   fixTokenId() {
+    if (this.tokenAddress !== process.env.MEDIA_CONTRACT.toLowerCase()) {
+      return;
+    }
     const withoutPrefix = this.tokenId.slice(2);
 
     let endZero = 0;
@@ -110,6 +118,13 @@ export class Nft extends PrimaryEntity {
     if (endZero !== 0) {
       this.tokenId = '0x' + withoutPrefix.slice(endZero);
     }
+  }
+
+  get tokenIdentity() {
+    return {
+      tokenId: this.tokenId,
+      tokenAddress: this.tokenAddress,
+    };
   }
 
   async updateCollectionProperty() {
@@ -140,12 +155,12 @@ export class Nft extends PrimaryEntity {
   async resizeNftImage() {
     Logger.log(`Processing NFT image: ${this.name}`);
     const imageUrl = this.image.replace('ipfs://', process.env.PINATA_GATE_WAY);
-    let downloadPath = `${process.env.UPLOAD_FOLDER}/${this.tokenId}`;
+    let downloadPath = `${process.env.UPLOAD_FOLDER}/${this.tokenAddress}_${this.tokenId}`;
     await downloadFile(imageUrl, downloadPath);
     const file = fs.statSync(downloadPath);
 
     if (file.size > 20971520) {
-      const outputpath = `${process.env.UPLOAD_FOLDER}/${this.tokenId}_resized`;
+      const outputpath = `${process.env.UPLOAD_FOLDER}/${this.tokenAddress}_${this.tokenId}_resized`;
       await sharp(downloadPath).resize(600, null).toFile(outputpath);
       fs.unlinkSync(downloadPath);
       downloadPath = outputpath;
@@ -154,5 +169,78 @@ export class Nft extends PrimaryEntity {
     fs.unlinkSync(downloadPath);
     this.thumbnail = secure_url;
     Logger.log(`Finished processing NFT image: ${this.name}`);
+  }
+
+  static noramlizeMoralisNft(nft) {
+    if (!nft) {
+      return null;
+    }
+
+    const result = Nft.create({
+      tokenId: nft.token_id,
+      tokenAddress: nft.token_address.toLowerCase(),
+      description: nft.normalized_metadata.description,
+      name: nft.normalized_metadata.name || nft.name,
+      image:
+        nft.normalized_metadata.animation_url || nft.normalized_metadata.image,
+      thumbnail:
+        nft.normalized_metadata.animation_url || nft.normalized_metadata.image,
+      minted: true,
+      owner: User.create({
+        pubKey: nft.owner_of,
+      }),
+      creator: User.create({
+        pubKey: nft.minter_address,
+      }),
+      tokenUri: nft.token_uri,
+      properties: [],
+      royaltyFee: 0,
+      onSale: false,
+    });
+    if (result.thumbnail && result.thumbnail.includes('ipfs://')) {
+      result.thumbnail = result.thumbnail.replace(
+        'ipfs://',
+        'https://ipfs.io/ipfs/',
+      );
+    }
+    return result;
+  }
+
+  static async getNftFromMoralis(tokenAddress: string, tokenId: string) {
+    const response = await Moralis.EvmApi.nft.getNFTMetadata({
+      address: tokenAddress,
+      chain: getChainId(),
+      tokenId,
+      normalizeMetadata: true,
+    });
+    const nft = response.toJSON();
+    return Nft.noramlizeMoralisNft(nft);
+  }
+
+  static async createFromMoralis(
+    tokenAddress: string,
+    tokenId: string,
+  ): Promise<Nft> {
+    const nft = await Nft.getNftFromMoralis(tokenAddress, tokenId);
+    const [owner, creator] = await Promise.all([
+      User.findOrCreate(nft.owner.pubKey),
+      User.findOrCreate(nft.creator.pubKey),
+    ]);
+    nft.owner = owner;
+    nft.creator = creator;
+    nft.ownerId = owner.id;
+
+    return await nft.save();
+  }
+
+  @BeforeInsert()
+  async addTokenAddressToStream() {
+    if (
+      this.tokenAddress.toLowerCase() ===
+      process.env.MEDIA_CONTRACT.toLowerCase()
+    ) {
+      return;
+    }
+    await addNftAddressToStream(this.tokenAddress);
   }
 }

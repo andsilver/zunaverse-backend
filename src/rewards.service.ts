@@ -20,7 +20,7 @@ export class RewardsService {
   controllerAddress: string;
 
   constructor() {
-    this.initContract();
+    // this.initContract();
   }
 
   async initContract() {

@@ -44,9 +44,14 @@ export class RewardsController {
         'rd.user',
         User,
         'Users',
-        'Users.pubKey ILIKE rd.userPubKey',
+        'Users.pubKey = rd.userPubKey',
       )
-      .leftJoinAndMapOne('rd.nft', Nft, 'n', 'n.id = rd.nftId')
+      .leftJoinAndMapOne(
+        'rd.nft',
+        Nft,
+        'n',
+        'n.tokenId = rd.tokenId AND n.tokenAddress = rd.tokenAddress',
+      )
       .getMany();
 
     if (reward.rewardType === 'buyback') {

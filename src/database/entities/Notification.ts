@@ -13,6 +13,12 @@ export class Notification extends PrimaryEntity {
   @Column({ nullable: true })
   nftId: number;
 
+  @Column({ nullable: true })
+  tokenId: string;
+
+  @Column({ nullable: true })
+  tokenAddress: string;
+
   @Column({ type: 'boolean', default: true })
   unread = true;
 

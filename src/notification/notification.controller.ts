@@ -13,7 +13,12 @@ export class NotificationController {
   async getNotifications(@CurrentUser() user: User) {
     const notifications = await Notification.createQueryBuilder('n1')
       .where('n1.userId = :userId AND unread = true', { userId: user.id })
-      .innerJoinAndMapOne('n1.nft', Nft, 'n2', 'n1.nftId = n2.id')
+      .innerJoinAndMapOne(
+        'n1.nft',
+        Nft,
+        'n2',
+        'n1.tokenId = n2.tokenId AND n1.tokenAddress = n2.tokenAddress',
+      )
       .orderBy('n1.createdAt', 'DESC')
       .limit(PAGINATION)
       .getMany();

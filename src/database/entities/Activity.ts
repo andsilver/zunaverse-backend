@@ -1,7 +1,8 @@
-import { BaseEntity, Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
+import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
+import { LowercaseAddressEntityAbstract } from '../abstracts/LowercaseAddress';
 
 @Entity('Activities')
-export class Activity extends BaseEntity {
+export class Activity extends LowercaseAddressEntityAbstract {
   @PrimaryGeneratedColumn()
   id: number;
 
@@ -22,6 +23,12 @@ export class Activity extends BaseEntity {
 
   @Column({ nullable: true })
   nft: number;
+
+  @Column({ nullable: true })
+  tokenId: string;
+
+  @Column({ nullable: true })
+  tokenAddress: string;
 
   @Column({ nullable: true })
   collectionId: number;

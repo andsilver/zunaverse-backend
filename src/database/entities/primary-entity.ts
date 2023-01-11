@@ -1,11 +1,11 @@
 import {
-  BaseEntity,
   CreateDateColumn,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
+import { LowercaseAddressEntityAbstract } from '../abstracts/LowercaseAddress';
 
-export class PrimaryEntity extends BaseEntity {
+export class PrimaryEntity extends LowercaseAddressEntityAbstract {
   @PrimaryGeneratedColumn()
   id: number;
 

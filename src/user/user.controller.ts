@@ -13,7 +13,6 @@ import {
   UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
-import { ILike } from 'typeorm';
 
 import { ACTIVITY_EVENTS, PAGINATION } from 'src/consts';
 import { Activity } from 'src/database/entities/Activity';
@@ -32,9 +31,13 @@ import {
   uploadImageCloudinary,
 } from 'src/shared/utils/cloudinary';
 import { RewardDetail } from 'src/database/entities/RewardDetail';
+import { MoralisService } from 'src/shared/services/moralis.service';
+import { Collection } from 'src/database/entities/Collection';
 
 @Controller('user')
 export class UserController {
+  constructor(private moralis: MoralisService) {}
+
   @Get('me')
   @UseGuards(AuthGuard)
   getMe(@Request() req: any) {
@@ -46,6 +49,8 @@ export class UserController {
     @Param('address') address: string,
     @CurrentUser() user: User,
   ) {
+    address = address.toLowerCase();
+
     const profile = await User.findByPubKey(address);
 
     if (!profile) {
@@ -54,23 +59,23 @@ export class UserController {
 
     profile.followers = await Follow.count({
       where: {
-        user: ILike(profile.pubKey),
+        user: profile.pubKey,
       },
     });
 
     profile.followings = await Follow.count({
-      where: { followee: ILike(profile.pubKey) },
+      where: { followee: profile.pubKey },
     });
 
     if (user) {
       const following = await Follow.findOneBy({
-        user: ILike(profile.pubKey),
-        followee: ILike(user.pubKey),
+        user: profile.pubKey,
+        followee: user.pubKey,
       });
       profile.following = !!following;
       const report = await Report.findOneBy({
-        userAddress: ILike(address),
-        reporter: ILike(user.pubKey),
+        userAddress: address,
+        reporter: user.pubKey,
       });
       profile.reported = !!report;
     }
@@ -89,6 +94,8 @@ export class UserController {
     @UploadedFiles()
     files: { avatar: Express.Multer.File[]; banner: Express.Multer.File[] },
   ) {
+    address = address.toLowerCase();
+
     const user = await User.findByPubKey(address);
 
     if (!user) {
@@ -130,10 +137,17 @@ export class UserController {
     @Query() query: any,
     @CurrentUser() user: User,
   ) {
+    address = address.toLowerCase();
+
     const { offset } = query;
     let qb = Favorite.createQueryBuilder('f')
       .where('f.userAddress = :address', { address })
-      .innerJoinAndMapOne('f.nft', Nft, 'n', 'f.nftId = n.id')
+      .innerJoinAndMapOne(
+        'f.nft',
+        Nft,
+        'n',
+        'f.tokenId = n.tokenId AND f.tokenId = n.tokenAddress',
+      )
       .leftJoinAndMapOne('n.currentAsk', Ask, 'a', 'n.currentAskId = a.id')
       .leftJoinAndMapOne('n.owner', User, 'u', 'u.id = n.ownerId')
       .addSelect(
@@ -141,7 +155,9 @@ export class UserController {
           sub
             .select('COUNT(f1.id)', 'favorites')
             .from(Favorite, 'f1')
-            .where('n.id = f1.nftId'),
+            .where(
+              'n.tokenId = f1.tokenId AND n.tokenAddress = f1.tokenAddress',
+            ),
         'favorites',
       );
 
@@ -151,9 +167,12 @@ export class UserController {
           sub
             .select('COUNT(f2.id)', 'favorited')
             .from(Favorite, 'f2')
-            .where('n.id = f2.nftId AND f2.userAddress ILIKE :address', {
-              address: user.pubKey,
-            }),
+            .where(
+              'n.tokenId = f2.tokenId AND n.tokenAddress = f2.tokenAddress AND f2.userAddress = :address',
+              {
+                address: user.pubKey,
+              },
+            ),
         'favorited',
       );
     }
@@ -173,15 +192,17 @@ export class UserController {
 
   @Get(':address/followers')
   async getFollowers(@Param('address') address: string, @Query() query: any) {
+    address = address.toLowerCase();
+
     const { entities, raw } = await Follow.createQueryBuilder('f')
-      .where('f.user ILIKE :address', { address })
-      .innerJoinAndMapOne('f.profile', User, 'u', 'f.followee ILIKE u.pubKey')
+      .where('f.user = :address', { address })
+      .innerJoinAndMapOne('f.profile', User, 'u', 'f.followee = u.pubKey')
       .addSelect(
         (sub) =>
           sub
             .select('COUNT(f1.id)', 'followers')
             .from(Follow, 'f1')
-            .where('f.followee ILIKE f1.user'),
+            .where('f.followee = f1.user'),
         'followers',
       )
       .getRawAndEntities();
@@ -194,15 +215,17 @@ export class UserController {
 
   @Get(':address/following')
   async getFollowees(@Param('address') address: string, @Query() query: any) {
+    address = address.toLowerCase();
+
     const { entities, raw } = await Follow.createQueryBuilder('f')
-      .where('f.followee ILIKE :address', { address })
-      .innerJoinAndMapOne('f.profile', User, 'u', 'f.user ILIKE u.pubKey')
+      .where('f.followee = :address', { address })
+      .innerJoinAndMapOne('f.profile', User, 'u', 'f.user = u.pubKey')
       .addSelect(
         (sub) =>
           sub
             .select('COUNT(f1.id)', 'followers')
             .from(Follow, 'f1')
-            .where('f.user ILIKE f1.user'),
+            .where('f.user = f1.user'),
         'followers',
       )
       .getRawAndEntities();
@@ -219,11 +242,17 @@ export class UserController {
     @Query() query: any,
   ) {
     const { offset } = query;
+    address = address.toLowerCase();
 
     const bids = await Bid.createQueryBuilder('Bids')
-      .leftJoinAndMapOne('Bids.nft', Nft, 'Nfts', 'Bids.nftId = Nfts.id')
+      .leftJoinAndMapOne(
+        'Bids.nft',
+        Nft,
+        'Nfts',
+        'Bids.tokenId = Nfts.tokenId AND Bids.tokenAddress = Nfts.tokenAddress',
+      )
       .leftJoinAndMapOne('Nfts.owner', User, 'Users', 'Users.id = Nfts.owner')
-      .where('Users.pubKey ILIKE :address', { address })
+      .where('Users.pubKey = :address', { address })
       .orderBy('Bids.createdAt', 'DESC')
       .offset(+offset || 0)
       .take(PAGINATION)
@@ -238,11 +267,17 @@ export class UserController {
     @Query() query: any,
   ) {
     const { offset } = query;
+    address = address.toLowerCase();
 
     const bids = await Bid.createQueryBuilder('Bids')
-      .leftJoinAndMapOne('Bids.nft', Nft, 'Nfts', 'Bids.nftId = Nfts.id')
+      .leftJoinAndMapOne(
+        'Bids.nft',
+        Nft,
+        'Nfts',
+        'Bids.tokenId = Nfts.tokenId AND Bids.tokenAddress = Nfts.tokenAddress',
+      )
       .leftJoinAndMapOne('Nfts.owner', User, 'Users', 'Users.id = Nfts.owner')
-      .where('Bids.bidder ILIKE :address', { address })
+      .where('Bids.bidder = :address', { address })
       .orderBy('Bids.createdAt', 'DESC')
       .offset(+offset || 0)
       .take(PAGINATION)
@@ -259,25 +294,25 @@ export class UserController {
     const { offset } = query;
 
     const activities = await Activity.createQueryBuilder('Activities')
-      .where('Activities.userAddress ILIKE :address', { address })
-      .orWhere('Activities.receiver ILIKE :address', { address })
+      .where('Activities.userAddress = :address', { address })
+      .orWhere('Activities.receiver = :address', { address })
       .leftJoinAndMapOne(
         'Activities.user',
         User,
         'Users1',
-        'Users1.pubKey ILIKE Activities.userAddress',
+        'Users1.pubKey = Activities.userAddress',
       )
       .leftJoinAndMapOne(
         'Activities.receiver',
         User,
         'Users2',
-        'Users2.pubKey ILIKE Activities.receiver',
+        'Users2.pubKey = Activities.receiver',
       )
       .leftJoinAndMapOne(
         'Activities.nft',
         Nft,
         'Nfts',
-        'Nfts.id = Activities.nft',
+        'Nfts.tokenId = Activities.tokenId AND Nfts.tokenAddress = Activities.tokenAddress',
       )
       .orderBy('Activities.createdAt', 'DESC')
       .offset(+offset || 0)
@@ -293,9 +328,11 @@ export class UserController {
     @CurrentUser() user: User,
     @Param('address') address: string,
   ) {
+    address = address.toLowerCase();
+
     const follow = await Follow.findOneBy({
-      user: ILike(address),
-      followee: ILike(user.pubKey),
+      user: address,
+      followee: user.pubKey,
     });
 
     if (follow) {
@@ -318,8 +355,10 @@ export class UserController {
   @Get(':address/rewards')
   @UseGuards(AuthGuard)
   async getRewards(@Param('address') address: string, @Query() query: any) {
+    address = address.toLowerCase();
+
     let qb = RewardDetail.createQueryBuilder('rd').where(
-      'rd.userPubKey ILIKE :address',
+      'rd.userPubKey = :address',
       { address },
     );
 
@@ -341,10 +380,107 @@ export class UserController {
     }
 
     return qb
-      .leftJoinAndMapOne('rd.nft', Nft, 'n', 'n.id = rd.nftId')
+      .leftJoinAndMapOne(
+        'rd.nft',
+        Nft,
+        'n',
+        'n.tokenId = rd.tokenId AND n.tokenAddress = rd.tokenAddress',
+      )
       .orderBy('rd.createdAt', 'DESC')
       .skip(+query.offset || 0)
       .take(PAGINATION)
       .getMany();
+  }
+
+  @Get(':address/others')
+  async getOtherNfts(
+    @Param('address') address: string,
+    @Query() query: any,
+    @CurrentUser() user: User,
+  ) {
+    address = address.toLowerCase();
+
+    const owner = await User.findOrCreate(address);
+
+    const { cursor } = query;
+    const res = await this.moralis.getNftsByAddress(address, cursor);
+    const nfts = res.result.filter(
+      (item) =>
+        item.token_address.toLowerCase() !==
+        process.env.MEDIA_CONTRACT.toLowerCase(),
+    );
+    const result = await Promise.all(
+      nfts.map((nft) => {
+        const n = Nft.noramlizeMoralisNft(nft);
+        n.owner = owner;
+        return n;
+      }),
+    );
+    const qb = Nft.createQueryBuilder('Nfts')
+      .where(
+        `(Nfts.tokenAddress, Nfts.tokenId) IN (${result
+          .map((n) => `('${n.tokenAddress}','${n.tokenId}')`)
+          .join(',')})`,
+      )
+      .leftJoinAndMapOne('Nfts.owner', User, 'Users', 'Users.id = Nfts.ownerId')
+      .leftJoinAndMapOne(
+        'Nfts.currentAsk',
+        Ask,
+        'Asks',
+        'Asks.id = Nfts.currentAskId',
+      )
+      .addSelect(
+        (sub) =>
+          sub
+            .select('COUNT(f.id)', 'favorites')
+            .from(Favorite, 'f')
+            .where(
+              'Nfts.tokenId = f.tokenId AND Nfts.tokenAddress = f.tokenAddress',
+            ),
+        'favorites',
+      );
+
+    if (user) {
+      qb.addSelect(
+        (sub) =>
+          sub
+            .select('COUNT(f.id)', 'favorited')
+            .from(Favorite, 'f')
+            .where(
+              'Nfts.tokenId = f.tokenId AND Nfts.tokenAddress = f.tokenAddress AND f.userAddress = :address',
+              {
+                address: user.pubKey,
+              },
+            ),
+        'favorited',
+      );
+    }
+
+    const { raw, entities } = await qb.getRawAndEntities();
+
+    const existingNfts = entities.map((e, index) => {
+      e.favorites = +raw[index].favorites;
+      e.favorited = !!+raw[index].favorited;
+      return e;
+    });
+
+    for (let i = 0; i < result.length; i++) {
+      const existingNft = existingNfts.find(
+        (n) =>
+          n.tokenId === result[i].tokenId &&
+          n.tokenAddress === result[i].tokenAddress,
+      );
+
+      if (existingNft) {
+        result[i] = existingNft;
+      }
+    }
+
+    return {
+      result,
+      page: res.page,
+      total: res.total,
+      cursor: res.cursor,
+    };
   }
 }

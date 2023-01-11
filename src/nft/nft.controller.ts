@@ -12,13 +12,13 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { ILike } from 'typeorm';
+
 import { ACTIVITY_EVENTS, PAGINATION } from 'src/consts';
 import { Activity } from 'src/database/entities/Activity';
 import { Ask } from 'src/database/entities/Ask';
 import { Bid } from 'src/database/entities/Bid';
 import { Collection } from 'src/database/entities/Collection';
 import { Favorite } from 'src/database/entities/Favorite';
-
 import { Nft } from 'src/database/entities/Nft';
 import { Notification } from 'src/database/entities/Notification';
 import { User } from 'src/database/entities/User';
@@ -86,7 +86,8 @@ export class NftController {
       userAddress: user.pubKey,
       event: ACTIVITY_EVENTS.MINT,
       createdAt: `${Date.now()}`,
-      nft: nft.id,
+      tokenId: nft.tokenId,
+      tokenAddress: nft.tokenAddress,
       collectionId: nft.collectionId,
     });
     await acitivity.save();
@@ -128,12 +129,14 @@ export class NftController {
           sub
             .select('COUNT(f.id)', 'favorites')
             .from(Favorite, 'f')
-            .where('Nfts.id = f.nftId'),
+            .where(
+              'Nfts.tokenId = f.tokenId AND Nfts.tokenAddress = f.tokenAddress',
+            ),
         'favorites',
       );
 
     if (userAddress) {
-      qb = qb.where('Users.pubKey ILIKE :userAddress', { userAddress });
+      qb = qb.where('Users.pubKey = :userAddress', { userAddress });
     }
 
     if (creatorAddress) {
@@ -190,9 +193,12 @@ export class NftController {
           sub
             .select('COUNT(f.id)', 'favorited')
             .from(Favorite, 'f')
-            .where('Nfts.id = f.nftId AND f.userAddress ILIKE :address', {
-              address: user.pubKey,
-            }),
+            .where(
+              'Nfts.tokenId = f.tokenId AND Nfts.tokenAddress = f.tokenAddress AND f.userAddress = :address',
+              {
+                address: user.pubKey,
+              },
+            ),
         'favorited',
       );
     }
@@ -238,40 +244,53 @@ export class NftController {
     return { result, count };
   }
 
-  @Post(':id/favorite')
+  @Post(':tokenAddress/:tokenId/favorite')
   @UseGuards(AuthGuard)
-  async favorite(@Param('id') id: string, @CurrentUser() user: User) {
-    const nft = await Nft.findOne({ where: { id: +id } });
+  async favorite(
+    @Param('tokenAddress') tokenAddress: string,
+    @Param('tokenId') tokenId: string,
+    @CurrentUser() user: User,
+  ) {
+    tokenAddress = tokenAddress.toLowerCase();
 
-    if (!nft) {
-      throw new UnprocessableEntityException('Nft not found');
-    }
-
-    const favorite = await Favorite.findOne({
-      where: {
-        nftId: +id,
-        userAddress: ILike(user.pubKey),
-      },
+    const favorite = await Favorite.findOneBy({
+      tokenId,
+      tokenAddress,
+      userAddress: user.pubKey,
     });
 
     if (favorite) {
       await favorite.remove();
     } else {
+      let nft = await Nft.findOneBy({ tokenId, tokenAddress });
+
+      if (!nft) {
+        nft = await Nft.createFromMoralis(tokenAddress, tokenId);
+      }
+
+      if (!nft) {
+        throw new UnprocessableEntityException('The nft does not exist');
+      }
+
       await Favorite.create({
-        nftId: +id,
+        tokenId,
+        tokenAddress,
         userAddress: user.pubKey,
       }).save();
 
-      const activity = new Activity();
-      activity.event = ACTIVITY_EVENTS.LIKES;
-      activity.createdAt = Date.now().toString();
-      activity.userAddress = user.pubKey;
-      activity.nft = nft.id;
-      activity.collectionId = nft.collectionId;
+      const activity = Activity.create({
+        tokenId,
+        tokenAddress,
+        event: ACTIVITY_EVENTS.LIKES,
+        createdAt: Date.now().toString(),
+        userAddress: user.pubKey,
+        collectionId: nft ? nft.collectionId : null,
+      });
       await activity.save();
 
       const notification = Notification.create({
-        nftId: nft.id,
+        tokenId,
+        tokenAddress,
         user: nft.owner,
         text: 'Someone favorited your nft',
         metadata: {
@@ -284,16 +303,19 @@ export class NftController {
     return { success: true };
   }
 
-  @Post(':id/collection')
+  @Post(':tokenAddress/:tokenId/collection')
   @UseGuards(AuthGuard)
   async addCollection(
-    @Param('id') id: string,
+    @Param('tokenAddress') tokenAddress: string,
+    @Param('tokenId') tokenId: string,
     @CurrentUser() user: User,
     @Body() body: any,
   ) {
+    tokenAddress = tokenAddress.toLowerCase();
+
     const { collectionId } = body;
 
-    const nft = await Nft.findOneBy({ id: +id });
+    const nft = await Nft.findOneBy({ tokenAddress, tokenId });
 
     if (!nft) {
       throw new UnprocessableEntityException('Nft not found');
@@ -317,58 +339,87 @@ export class NftController {
     return { success: true };
   }
 
-  @Get(':id')
-  async getOneNft(@Param('id') id: string, @CurrentUser() user: User) {
-    const nft = await Nft.createQueryBuilder('Nfts')
-      .where('Nfts.id = :id', { id: +id })
-      .leftJoinAndMapOne('Nfts.owner', User, 'Users', 'Nfts.ownerId = Users.id')
-      .leftJoinAndMapOne(
-        'Nfts.creator',
-        User,
-        'Users2',
-        'Nfts.creatorId = Users2.id',
-      )
-      .leftJoinAndMapOne(
-        'Nfts.currentAsk',
-        Ask,
-        'Asks',
-        'Asks.id = Nfts.currentAskId',
-      )
-      .leftJoinAndMapOne(
-        'Nfts.collection',
-        Collection,
-        'c',
-        'c.id = Nfts.collectionId',
-      )
-      .getOne();
+  @Get(':tokenAddress/:tokenId')
+  async getOneNft(
+    @Param('tokenAddress') tokenAddress: string,
+    @Param('tokenId') tokenId: string,
+    @CurrentUser() user: User,
+  ) {
+    tokenAddress = tokenAddress.toLowerCase();
+
+    const nft =
+      (await Nft.createQueryBuilder('Nfts')
+        .where(
+          'Nfts.tokenAddress = :tokenAddress AND Nfts.tokenId = :tokenId',
+          {
+            tokenAddress,
+            tokenId,
+          },
+        )
+        .leftJoinAndMapOne(
+          'Nfts.owner',
+          User,
+          'Users',
+          'Nfts.ownerId = Users.id',
+        )
+        .leftJoinAndMapOne(
+          'Nfts.creator',
+          User,
+          'Users2',
+          'Nfts.creatorId = Users2.id',
+        )
+        .leftJoinAndMapOne(
+          'Nfts.currentAsk',
+          Ask,
+          'Asks',
+          'Asks.id = Nfts.currentAskId',
+        )
+        .leftJoinAndMapOne(
+          'Nfts.collection',
+          Collection,
+          'c',
+          'c.id = Nfts.collectionId',
+        )
+        .getOne()) || (await Nft.getNftFromMoralis(tokenAddress, tokenId));
 
     if (!nft) {
       throw new UnprocessableEntityException('The nft does not exist');
     }
     const favorites = await Favorite.count({
       where: {
-        nftId: +id,
+        tokenId,
+        tokenAddress,
       },
     });
     nft.favorites = favorites;
     nft.favorited = user
       ? !!(await Favorite.findOne({
-          where: { nftId: +id, userAddress: ILike(user.pubKey) },
+          where: { tokenId, tokenAddress, userAddress: user.pubKey },
         }))
       : false;
 
-    nft.image = nft.image.replace('ipfs://', process.env.PINATA_GATE_WAY);
+    nft.image &&
+      (nft.image = nft.image.replace('ipfs://', process.env.PINATA_GATE_WAY));
 
     return nft;
   }
 
-  @Get(':id/activities')
-  async getNftActivities(@Param('id') id: string, @Query() query: any) {
+  @Get(':tokenAddress/:tokenId/activities')
+  async getNftActivities(
+    @Param('tokenAddress') tokenAddress: string,
+    @Param('tokenId') tokenId: string,
+    @Query() query: any,
+  ) {
+    tokenAddress = tokenAddress.toLowerCase();
+
     const { offset } = query;
 
     const activities = await Activity.createQueryBuilder('a')
-      .where('a.nft = :id', { id: +id })
-      .leftJoinAndMapOne('a.user', User, 'u', 'u.pubKey ILIKE a.userAddress')
+      .where('a.tokenId = :tokenId AND a.tokenAddress = :tokenAddress', {
+        tokenId,
+        tokenAddress,
+      })
+      .leftJoinAndMapOne('a.user', User, 'u', 'u.pubKey = a.userAddress')
       .orderBy('a.createdAt', 'DESC')
       .offset(+offset || 0)
       .take(PAGINATION)
@@ -377,8 +428,14 @@ export class NftController {
     return activities;
   }
 
-  @Get(':id/bids')
-  async getNftBids(@Param('id') id: string, @Query() query: any) {
+  @Get(':tokenAddress/:tokenId/bids')
+  async getNftBids(
+    @Param('tokenAddress') tokenAddress: string,
+    @Param('tokenId') tokenId: string,
+    @Query() query: any,
+  ) {
+    tokenAddress = tokenAddress.toLowerCase();
+
     const { offset } = query;
 
     const bids = await Bid.createQueryBuilder('Bids')
@@ -386,9 +443,12 @@ export class NftController {
         'Bids.bidder',
         User,
         'Users',
-        'Users.pubKey ILIKE Bids.bidder',
+        'Users.pubKey = Bids.bidder',
       )
-      .where('Bids.nftId = :id', { id: +id })
+      .where('Bids.tokenId = :tokenId AND Bids.tokenAddress = :tokenAddress', {
+        tokenId,
+        tokenAddress,
+      })
       .orderBy('Bids.createdAt', 'DESC')
       .offset(+offset || 0)
       .take(PAGINATION)
@@ -397,14 +457,28 @@ export class NftController {
     return bids;
   }
 
-  @Post(':id/bids')
+  @Post(':tokenAddress/:tokenId/bids')
   @UseGuards(AuthGuard)
   async createBid(
     @CurrentUser() user: User,
-    @Param('id') id: string,
+    @Param('tokenAddress') tokenAddress: string,
+    @Param('tokenId') tokenId: string,
     @Body() body: any,
   ) {
-    const nft = await Nft.findOne({ where: { id: +id }, relations: ['owner'] });
+    tokenAddress = tokenAddress.toLowerCase();
+
+    let nft = await Nft.findOne({
+      where: { tokenAddress, tokenId },
+      relations: ['owner'],
+    });
+
+    if (!nft) {
+      nft = await Nft.createFromMoralis(tokenAddress, tokenId);
+    }
+
+    if (!nft) {
+      throw new UnprocessableEntityException('The nft does not exist');
+    }
 
     if (nft.owner.pubKey === user.pubKey) {
       throw new ForbiddenException('Cannot bid on your own nft');
@@ -414,43 +488,60 @@ export class NftController {
       throw new ForbiddenException('NFT is not listed for sale');
     }
 
-    const bid = Bid.create(body) as Bid;
-    bid.nftId = nft.id;
-    bid.bidder = user.pubKey;
+    const bid = Bid.create({
+      ...body,
+      ...nft.tokenIdentity,
+      bidder: user.pubKey,
+    }) as Bid;
 
     await bid.save();
 
-    const activity = new Activity();
-    activity.amount = bid.amount;
-    activity.currency = bid.currency;
-    activity.createdAt = Date.now().toString();
-    activity.event = ACTIVITY_EVENTS.BIDS.NEW_BID;
-    activity.userAddress = user.pubKey;
-    activity.nft = nft.id;
-    activity.collectionId = nft.collectionId;
+    const activity = Activity.create({
+      amount: bid.amount,
+      currency: bid.currency,
+      createdAt: Date.now().toString(),
+      event: ACTIVITY_EVENTS.BIDS.NEW_BID,
+      userAddress: user.pubKey,
+      collectionId: nft.collectionId,
+      ...nft.tokenIdentity,
+    });
     await activity.save();
 
-    const notification = new Notification();
-    notification.text = 'New bid on your NFT';
-    notification.user = nft.owner;
-    notification.nftId = nft.id;
-    notification.metadata = {
-      activityId: activity.id,
-      offer: {
-        amount: bid.amount,
-        currency: bid.currency,
+    const notification = Notification.create({
+      text: 'New bid on your NFT',
+      user: nft.owner,
+      metadata: {
+        activityId: activity.id,
+        offer: {
+          amount: bid.amount,
+          currency: bid.currency,
+        },
+        from: user.pubKey,
       },
-      from: user.pubKey,
-    };
+      ...nft.tokenIdentity,
+    });
     await notification.save();
 
     return { success: true };
   }
 
-  @Delete(':id/sale')
+  @Delete(':tokenAddress/:tokenId/sale')
   @UseGuards(AuthGuard)
-  async removeFromSale(@CurrentUser() user: User, @Param('id') id: string) {
-    const nft = await Nft.findOne({ where: { id: +id }, relations: ['owner'] });
+  async removeFromSale(
+    @CurrentUser() user: User,
+    @Param('tokenAddress') tokenAddress: string,
+    @Param('tokenId') tokenId: string,
+  ) {
+    tokenAddress = tokenAddress.toLowerCase();
+
+    const nft = await Nft.findOne({
+      where: { tokenAddress, tokenId },
+      relations: ['owner'],
+    });
+
+    if (!nft) {
+      throw new UnprocessableEntityException('The nft does not exist');
+    }
 
     if (nft.owner.pubKey !== user.pubKey) {
       throw new ForbiddenException('Not the nft owner');
@@ -458,27 +549,31 @@ export class NftController {
 
     nft.onSale = false;
 
-    await Bid.delete({ nftId: nft.id });
+    await Bid.delete({ tokenAddress, tokenId });
     await nft.save();
 
     const activity = new Activity();
     activity.createdAt = Date.now().toString();
     activity.event = ACTIVITY_EVENTS.SALES.CANCEL;
     activity.userAddress = user.pubKey;
-    activity.nft = nft.id;
+    activity.tokenId = tokenId;
+    activity.tokenAddress = tokenAddress;
     activity.collectionId = nft.collectionId;
     await activity.save();
 
     return { success: true };
   }
 
-  @Post(':id/sale')
+  @Post(':tokenAddress/:tokenId/sale')
   @UseGuards(AuthGuard)
   async updateSale(
     @CurrentUser() user: User,
     @Body() body: any,
-    @Param('id') id: string,
+    @Param('tokenAddress') tokenAddress: string,
+    @Param('tokenId') tokenId: string,
   ) {
+    tokenAddress = tokenAddress.toLowerCase();
+
     if (body.instantSale) {
       if (!body.typedData || !body.typedData.signature) {
         throw new BadRequestException('Signature is required');
@@ -488,7 +583,16 @@ export class NftController {
         throw new BadRequestException('Price is required');
       }
     }
-    const nft = await Nft.findOne({ where: { id: +id }, relations: ['owner'] });
+    const nft =
+      (await Nft.findOne({
+        where: { tokenAddress, tokenId },
+        relations: ['owner'],
+      })) || (await Nft.createFromMoralis(tokenAddress, tokenId));
+
+    if (!nft) {
+      throw new UnprocessableEntityException('The nft does not exist');
+    }
+
     const collection = await Collection.findOneBy({ id: nft.collectionId });
 
     if (nft.owner.pubKey !== user.pubKey) {
@@ -504,7 +608,8 @@ export class NftController {
         ? ACTIVITY_EVENTS.SALES.PUT
         : ACTIVITY_EVENTS.SALES.CANCEL;
       activity.userAddress = user.pubKey;
-      activity.nft = nft.id;
+      activity.tokenAddress = tokenAddress;
+      activity.tokenId = tokenId;
       activity.collectionId = nft.collectionId;
       await activity.save();
     }
@@ -513,8 +618,9 @@ export class NftController {
       let ask = await Ask.findOneBy({ nftId: nft.id });
 
       if (!ask) {
-        ask = new Ask();
-        ask.nftId = nft.id;
+        ask = Ask.create({
+          ...nft.tokenIdentity,
+        });
       }
       ask.amount = body.price.amount;
       ask.currency = body.price.currency;
@@ -530,18 +636,20 @@ export class NftController {
       activity.createdAt = Date.now().toString();
       activity.event = ACTIVITY_EVENTS.SALES.PRICE_SET;
       activity.userAddress = user.pubKey;
-      activity.nft = nft.id;
+      activity.tokenAddress = tokenAddress;
+      activity.tokenId = tokenId;
       activity.collectionId = nft.collectionId;
       await activity.save();
     } else {
       if (nft.currentAskId) {
         nft.currentAskId = null;
-        await Ask.delete({ nftId: nft.id });
+        await Ask.delete({ tokenAddress, tokenId });
         const activity = new Activity();
         activity.createdAt = Date.now().toString();
         activity.event = ACTIVITY_EVENTS.SALES.PRICE_REMOVE;
         activity.userAddress = user.pubKey;
-        activity.nft = nft.id;
+        activity.tokenAddress = tokenAddress;
+        activity.tokenId = tokenId;
         activity.collectionId = nft.collectionId;
         await activity.save();
       }
@@ -555,10 +663,14 @@ export class NftController {
     return { success: true };
   }
 
-  @Delete(':id')
+  @Delete(':tokenAddress/:tokenId')
   @UseGuards(AuthGuard)
-  async burnNFT(@Param('id') id: string, @CurrentUser() user: User) {
-    const nft = await Nft.findOneBy({ id: +id });
+  async burnNFT(
+    @Param('tokenAddress') tokenAddress: string,
+    @Param('tokenId') tokenId: string,
+    @CurrentUser() user: User,
+  ) {
+    const nft = await Nft.findOneBy({ tokenAddress, tokenId });
 
     if (!nft) {
       throw new UnprocessableEntityException('The nft does not exist');

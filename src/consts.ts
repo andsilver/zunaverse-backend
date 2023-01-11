@@ -25,6 +25,6 @@ export const CURRENCIES = {
   },
   zuna: {
     address: process.env.ZUNA_ADDRESS,
-    decimals: 8,
+    decimals: 9,
   },
 };

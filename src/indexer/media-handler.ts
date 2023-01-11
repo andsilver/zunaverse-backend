@@ -73,7 +73,10 @@ export class MediaHandler {
       const fromUser =
         from !== ZERO_ADDRESS ? await User.findOrCreate(from) : null;
 
-      const nft = await Nft.findOneBy({ tokenId });
+      const nft = await Nft.findOneBy({
+        tokenId,
+        tokenAddress: process.env.MEDIA_CONTRACT.toLowerCase(),
+      });
 
       if (to === ZERO_ADDRESS) {
         await nft.burn();
@@ -91,7 +94,7 @@ export class MediaHandler {
           nft.minted = true;
           nft.txHash = log.transactionHash;
         }
-        await Ask.delete({ nftId: nft.id });
+        await Ask.delete(nft.tokenIdentity);
       }
 
       if (from !== ZERO_ADDRESS) {
@@ -103,12 +106,13 @@ export class MediaHandler {
         activity.event = ACTIVITY_EVENTS.TRANSFERS;
         activity.userAddress = fromUser.pubKey;
         activity.receiver = toUser.pubKey;
-        activity.nft = nft.id;
+        activity.tokenId = nft.tokenId;
+        activity.tokenAddress = nft.tokenAddress;
         activity.createdAt = `${+block.timestamp * 1000}`;
         activity.collectionId = nft.collectionId;
 
         await activity.save();
-        await Bid.delete({ bidder: toUser.pubKey });
+        await Bid.delete({ bidder: toUser.pubKey, ...nft.tokenIdentity });
       }
       await nft.save();
 
