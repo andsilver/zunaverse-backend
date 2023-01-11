@@ -74,6 +74,10 @@ export class FixService {
     for (const f of favorites) {
       const nft = await Nft.findOneBy({ id: f.nftId });
 
+      if (!nft || (nft.tokenId && nft.tokenAddress)) {
+        continue;
+      }
+
       f.tokenId = nft.tokenId;
       f.tokenAddress = nft.tokenAddress;
       f.userAddress = f.userAddress.toLowerCase();
@@ -85,7 +89,7 @@ export class FixService {
     for (const act of activities) {
       const nft = await Nft.findOneBy({ id: act.nft });
 
-      if (!nft) {
+      if (!nft || (nft.tokenId && nft.tokenAddress)) {
         continue;
       }
       act.tokenAddress = nft.tokenAddress;
@@ -99,6 +103,11 @@ export class FixService {
 
     for (const ask of asks) {
       const nft = await Nft.findOneBy({ id: ask.nftId });
+
+      if (!nft || (nft.tokenId && nft.tokenAddress)) {
+        continue;
+      }
+
       ask.tokenId = nft.tokenId;
       ask.tokenAddress = nft.tokenAddress;
       ask.owner = ask.owner.toLowerCase();
@@ -109,6 +118,10 @@ export class FixService {
 
     for (const bid of bids) {
       const nft = await Nft.findOneBy({ id: bid.nftId });
+
+      if (!nft || (nft.tokenId && nft.tokenAddress)) {
+        continue;
+      }
       bid.tokenId = nft.tokenId;
       bid.tokenAddress = nft.tokenAddress;
       bid.bidder = bid.bidder.toLowerCase();
@@ -120,6 +133,11 @@ export class FixService {
 
     for (const t of transactions) {
       const nft = await Nft.findOneBy({ id: t.nftId });
+
+      if (!nft || (nft.tokenId && nft.tokenAddress)) {
+        continue;
+      }
+
       t.tokenId = nft.tokenId;
       t.tokenAddress = nft.tokenAddress;
       t.buyer = t.buyer.toLowerCase();
@@ -135,6 +153,10 @@ export class FixService {
         continue;
       }
       const nft = await Nft.findOneBy({ id: n.nftId });
+
+      if (!nft || (nft.tokenId && nft.tokenAddress)) {
+        continue;
+      }
 
       n.tokenAddress = nft.tokenAddress;
       n.tokenId = nft.tokenId;
