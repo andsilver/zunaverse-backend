@@ -66,6 +66,7 @@ export class NftController {
       signature,
       collectionId: collectionId || null,
       tokenId,
+      tokenAddress: process.env.MEDIA_CONTRACT.toLowerCase(),
       properties,
       tokenUri,
       minted: false,
