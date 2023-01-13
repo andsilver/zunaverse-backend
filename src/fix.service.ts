@@ -43,13 +43,26 @@ export class FixService {
   }
 
   async fix() {
-    // const favorites = await Favorite.find({});
-    // for (const f of favorites) {
-    //   const nft = await Nft.findOneBy({ id: f.nftId });
-    //   f.tokenId = nft.tokenId;
-    //   f.tokenAddress = nft.tokenAddress;
-    //   await f.save();
+    const nfts = await Nft.findBy({
+      collectionId: 1,
+      txHash: IsNull(),
+      minted: false,
+    });
+    const collection = await Collection.findOneBy({
+      id: 1,
+    });
+    console.log(nfts.length, collection);
+
+    // for (const nft of nfts) {
+    //   await Bid.delete(nft.tokenIdentity);
+    //   await Activity.delete(nft.tokenIdentity);
+    //   await Ask.delete(nft.tokenIdentity);
+    //   await Favorite.delete(nft.tokenIdentity);
+    //   await Notification.delete(nft.tokenIdentity);
+    //   await nft.remove();
     // }
+    // await collection.calculateMetrics();
+    // await collection.calculateFloorPrice();
   }
 
   async addNftThumbnail() {
