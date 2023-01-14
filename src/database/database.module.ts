@@ -17,6 +17,7 @@ import { Report } from './entities/Report';
 import { UserBuyHistory } from './entities/UserBuyHistory';
 import { Reward } from './entities/Reward';
 import { RewardDetail } from './entities/RewardDetail';
+import { Currency } from './entities/Currency';
 // import { TopSeller } from './views/TopSeller';
 
 @Module({
@@ -51,6 +52,7 @@ import { RewardDetail } from './entities/RewardDetail';
         UserBuyHistory,
         Reward,
         RewardDetail,
+        Currency,
         // TopSeller,
       ],
       synchronize: true,

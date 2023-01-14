@@ -7,21 +7,20 @@ import {
 } from '@nestjs/common';
 import { IWebhook } from '@moralisweb3/streams-typings';
 import Moralis from 'moralis';
+import Web3 from 'web3';
+
 import { Nft } from 'src/database/entities/Nft';
 import { ACTIVITY_EVENTS, ZERO_ADDRESS } from 'src/consts';
 import { User } from 'src/database/entities/User';
 import { Ask } from 'src/database/entities/Ask';
 import { Activity } from 'src/database/entities/Activity';
 import { Bid } from 'src/database/entities/Bid';
-import Web3 from 'web3';
-import { fetchCoins } from 'src/shared/utils/coingecko';
-import {
-  currencyAddressToSymbol,
-  fromWei,
-  getCurrency,
-} from 'src/shared/utils/currency';
+
+import { fromWei } from 'src/shared/utils/currency';
 import { Transaction } from 'src/database/entities/Transaction';
 import { Notification } from 'src/database/entities/Notification';
+import { Collection } from 'src/database/entities/Collection';
+import { Currency } from 'src/database/entities/Currency';
 
 @Controller('stream')
 export class StreamController {
@@ -69,17 +68,16 @@ export class StreamController {
     const ask =
       nft.currentAskId && (await Ask.findOneBy({ id: nft.currentAskId }));
 
-    const currencies = await fetchCoins();
-    const symbol = currencyAddressToSymbol(offer.erc20Address);
-    const currency = getCurrency(symbol);
-
+    const currency = await Currency.findOneBy({
+      address: offer.erc20Address.toLowerCase(),
+    });
     activity.event = 'Sale';
     activity.amount = fromWei(Web3.utils.toBN(offer.amount), currency.decimals);
     activity.currency = offer.erc20Address;
 
     await activity.save();
 
-    const usd = currencies[symbol].current_price * +activity.amount;
+    const usd = +currency.usd * +activity.amount;
 
     await Transaction.create({
       amount: +activity.amount,
@@ -139,33 +137,61 @@ export class StreamController {
     this.logger.log(body.nftTransfers[0]);
 
     const nft = await Nft.findOneBy({ tokenId, tokenAddress });
+    const isZunaNFT =
+      tokenAddress.toLowerCase() === process.env.MEDIA_CONTRACT.toLowerCase();
 
-    if (!nft || from === ZERO_ADDRESS) {
-      return;
+    if (!nft) {
+      if (isZunaNFT) {
+        this.logger.error(`None existing NFT`);
+        throw new UnprocessableEntityException('Nft doesnt exist');
+      } else {
+        return;
+      }
     }
 
     if (to === ZERO_ADDRESS) {
       await nft.burn();
       return;
     }
-    await User.findOrCreate(from);
+
+    const fromUser =
+      from === ZERO_ADDRESS ? null : await User.findOrCreate(from);
     const toUser = await User.findOrCreate(to);
 
-    nft.currentAskId = null;
-    nft.owner = toUser;
+    if (!nft.minted) {
+      nft.minted = true;
+      nft.txHash = transactionHash;
+    }
 
-    const activity = Activity.create({
-      txHash: transactionHash,
-      logIndex: +logIndex,
-      event: ACTIVITY_EVENTS.TRANSFERS,
-      userAddress: from,
-      receiver: to,
-      createdAt: `${+body.block.timestamp * 1000}`,
-      ...nft.tokenIdentity,
-    });
+    nft.owner = toUser;
+    nft.currentAskId = null;
+
     await Ask.delete(nft.tokenIdentity);
-    await Bid.delete({ bidder: toUser.pubKey, ...nft.tokenIdentity });
+
+    if (fromUser.pubKey !== ZERO_ADDRESS) {
+      await Bid.delete({ bidder: toUser.pubKey, ...nft.tokenIdentity });
+
+      const activity = Activity.create({
+        txHash: transactionHash,
+        logIndex: +logIndex,
+        event: ACTIVITY_EVENTS.TRANSFERS,
+        userAddress: from,
+        receiver: to,
+        createdAt: `${+body.block.timestamp * 1000}`,
+        ...nft.tokenIdentity,
+      });
+      await activity.save();
+    }
+
     await nft.save();
-    await activity.save();
+
+    if (nft.collectionId) {
+      const collection = await Collection.findOneBy({ id: nft.collectionId });
+
+      if (!collection) {
+        throw new Error(`Collection ${nft.collectionId} does not exist`);
+      }
+      await collection.calculateFloorPrice();
+    }
   }
 }

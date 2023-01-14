@@ -11,12 +11,12 @@ import { User } from 'src/database/entities/User';
 import { Transaction } from 'src/database/entities/Transaction';
 import { Bid } from 'src/database/entities/Bid';
 import { Collection } from 'src/database/entities/Collection';
-import { fetchCoins } from 'src/shared/utils/coingecko';
 import {
   currencyAddressToSymbol,
   fromWei,
   getCurrency,
 } from 'src/shared/utils/currency';
+import { Currency } from 'src/database/entities/Currency';
 
 export class MarketHandler {
   contract: Contract;
@@ -94,16 +94,16 @@ export class MarketHandler {
       if (!activity) {
         throw new Error(`Transfer activity missing`);
       }
-      const currencies = await fetchCoins();
-      const symbol = currencyAddressToSymbol(offer.erc20Address);
-      const currency = getCurrency(symbol);
+      const currency = await Currency.findOneBy({
+        address: offer.erc20Address.toLowerCase(),
+      });
 
       activity.event = 'Sale';
       activity.amount = fromWei(offer.amount, currency.decimals);
       activity.currency = offer.erc20Address;
       await activity.save();
 
-      const usd = currencies[symbol].current_price * +activity.amount;
+      const usd = +currency.usd * +activity.amount;
 
       await Transaction.create({
         amount: +activity.amount,
@@ -188,16 +188,15 @@ export class MarketHandler {
       if (!activity) {
         throw new Error(`Transfer activity missing`);
       }
-      const currencies = await fetchCoins();
-      const symbol = currencyAddressToSymbol(offer.erc20Address);
-      const currency = getCurrency(symbol);
-
+      const currency = await Currency.findOneBy({
+        address: offer.erc20Address.toLowerCase(),
+      });
       activity.event = 'Sale';
       activity.amount = fromWei(offer.amount, currency.decimals);
       activity.currency = offer.erc20Address;
       await activity.save();
 
-      const usd = currencies[symbol].current_price * +activity.amount;
+      const usd = +currency.usd * +activity.amount;
 
       await Transaction.create({
         amount: +activity.amount,

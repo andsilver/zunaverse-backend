@@ -1,7 +1,6 @@
-import { fetchCoins } from 'src/shared/utils/coingecko';
-import { currencyAddressToSymbol } from 'src/shared/utils/currency';
-import { Column, Entity, ManyToOne } from 'typeorm';
+import { Column, Entity, In, ManyToOne } from 'typeorm';
 import { Ask } from './Ask';
+import { Currency } from './Currency';
 import { Nft } from './Nft';
 import { PrimaryEntity } from './primary-entity';
 import { User } from './User';
@@ -80,27 +79,26 @@ export class Collection extends PrimaryEntity {
     await this.save();
   }
 
-  async calculateFloorPrice(currencies?: any) {
+  async calculateFloorPrice() {
     const asks = await Ask.find({ where: { collectionId: this.id } });
-
-    if (!currencies) {
-      currencies = await fetchCoins();
-    }
+    const currencies = await Currency.findBy({
+      address: In(asks.map((ask) => ask.currency)),
+    });
 
     if (asks.length) {
       let min = 0;
 
-      asks.forEach((ask) => {
-        const symbol = currencyAddressToSymbol(ask.currency);
-        const usdPrice = currencies[symbol].current_price;
+      for (const ask of asks) {
+        const currency = currencies.find((c) => c.address === ask.currency);
+        const usdPrice = currency.usd;
         const price = +usdPrice * +ask.amount;
 
         if (!min || price < min) {
           min = price;
           this.floorPrice = +ask.amount;
-          this.floorPriceCurrency = symbol;
+          this.floorPriceCurrency = currency.symbol;
         }
-      });
+      }
     } else {
       this.floorPrice = 0;
       this.floorPriceCurrency = null;

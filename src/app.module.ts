@@ -10,7 +10,7 @@ import { BidModule } from './bid/bid.module';
 import { CollectionModule } from './collection/collection.module';
 import { DatabaseModule } from './database/database.module';
 import { FixService } from './fix.service';
-import { IndexingService } from './indexing.service';
+import { CronService } from './cron.service';
 import { NftModule } from './nft/nft.module';
 import { NotificationModule } from './notification/notification.module';
 import { PinataModule } from './pinata/pinata.module';
@@ -40,6 +40,6 @@ import { UserModule } from './user/user.module';
     StreamModule,
   ],
   controllers: [AppController],
-  providers: [AppService, IndexingService, FixService, RewardsService],
+  providers: [AppService, CronService, FixService, RewardsService],
 })
 export class AppModule {}

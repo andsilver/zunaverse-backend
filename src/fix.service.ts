@@ -6,6 +6,7 @@ import { Ask } from './database/entities/Ask';
 import { Bid } from './database/entities/Bid';
 
 import { Collection } from './database/entities/Collection';
+import { Currency } from './database/entities/Currency';
 import { Favorite } from './database/entities/Favorite';
 import { Nft } from './database/entities/Nft';
 import { Notification } from './database/entities/Notification';
@@ -43,26 +44,62 @@ export class FixService {
   }
 
   async fix() {
-    const nfts = await Nft.findBy({
+    // await this.addCoins();
+    await this.burn();
+  }
+
+  async burn() {
+    let nfts = await Nft.findBy({
       collectionId: 1,
       txHash: IsNull(),
       minted: false,
+      owner: {
+        pubKey: '0x2818bfb42c39fe0643265dee392ea7f17221c75e',
+      },
     });
     const collection = await Collection.findOneBy({
       id: 1,
     });
-    console.log(nfts.length, collection);
+    nfts = nfts.filter(
+      (n) =>
+        ![
+          195, 165, 179, 162, 127, 124, 229, 178, 165, 244, 117, 122, 147, 151,
+          182, 201, 231, 236, 229, 272, 273, 297, 306, 386, 394,
+        ].includes(n.id),
+    );
 
-    // for (const nft of nfts) {
-    //   await Bid.delete(nft.tokenIdentity);
-    //   await Activity.delete(nft.tokenIdentity);
-    //   await Ask.delete(nft.tokenIdentity);
-    //   await Favorite.delete(nft.tokenIdentity);
-    //   await Notification.delete(nft.tokenIdentity);
-    //   await nft.remove();
-    // }
-    // await collection.calculateMetrics();
-    // await collection.calculateFloorPrice();
+    console.log(nfts.length, nfts.filter((n) => n.txHash === null).length);
+
+    for (const nft of nfts) {
+      await Bid.delete(nft.tokenIdentity);
+      await Activity.delete(nft.tokenIdentity);
+      await Ask.delete(nft.tokenIdentity);
+      await Favorite.delete(nft.tokenIdentity);
+      await Notification.delete(nft.tokenIdentity);
+      await nft.remove();
+    }
+    await collection.calculateMetrics();
+    await collection.calculateFloorPrice();
+  }
+
+  async addCoins() {
+    await Currency.create({
+      name: 'Zuna',
+      symbol: 'ZUNA',
+      coinId: 'zuna',
+      address: process.env.ZUNA_ADDRESS,
+      usd: 0,
+      decimals: 9,
+    }).save();
+
+    await Currency.create({
+      name: 'Wrapped BNB',
+      symbol: 'WBNB',
+      coinId: 'wbnb',
+      address: process.env.WBNB_ADDRESS,
+      usd: 0,
+      decimals: 18,
+    }).save();
   }
 
   async addNftThumbnail() {
