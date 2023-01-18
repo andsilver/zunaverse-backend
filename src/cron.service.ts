@@ -32,7 +32,6 @@ export class CronService implements OnApplicationBootstrap {
     currencies.map((c) => {
       c.usd = +prices[c.coinId].current_price;
     });
-    console.log(currencies);
     await Currency.save(currencies);
   }
 }

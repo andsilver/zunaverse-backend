@@ -21,6 +21,7 @@ import { Favorite } from 'src/database/entities/Favorite';
 import { Nft } from 'src/database/entities/Nft';
 import { Notification } from 'src/database/entities/Notification';
 import { User } from 'src/database/entities/User';
+import { Currency } from 'src/database/entities/Currency';
 import { CurrentUser } from 'src/shared/decorators/current-user.decorator';
 import { AuthGuard } from 'src/shared/guards/auth.guard';
 
@@ -109,6 +110,8 @@ export class NftController {
       offset,
       size,
       currency,
+      orderBy,
+      order,
     } = query;
 
     let qb = Nft.createQueryBuilder('Nfts')
@@ -236,6 +239,27 @@ export class NftController {
         )
       `);
     }
+
+    if (orderBy === 'price') {
+      qb.addSelect(
+        (sub) =>
+          sub
+            .select(
+              'COALESCE(Currency.usd * CAST(Asks.amount AS DECIMAL), 0)',
+              'price',
+            )
+            .from(Currency, 'Currency')
+            .where('Asks.currency = Currency.address'),
+        'price',
+      ).orderBy(
+        'price',
+        order || 'DESC',
+        order === 'ASC' ? 'NULLS FIRST' : 'NULLS LAST',
+      );
+    } else {
+      qb.orderBy(orderBy || 'Nfts.createdAt', 'DESC');
+    }
+
     const count = await qb.getCount();
     const { raw, entities } = await qb
       .skip(offset || 0)
