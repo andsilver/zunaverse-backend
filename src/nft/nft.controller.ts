@@ -256,8 +256,8 @@ export class NftController {
         order || 'DESC',
         order === 'ASC' ? 'NULLS FIRST' : 'NULLS LAST',
       );
-    } else {
-      qb.orderBy(orderBy || 'Nfts.createdAt', 'DESC');
+    } else if (orderBy === 'createdAt' || !orderBy) {
+      qb.orderBy('Nfts.createdAt', order || 'DESC');
     }
 
     const count = await qb.getCount();
