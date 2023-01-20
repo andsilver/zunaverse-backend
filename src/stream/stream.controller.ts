@@ -21,10 +21,42 @@ import { Transaction } from 'src/database/entities/Transaction';
 import { Notification } from 'src/database/entities/Notification';
 import { Collection } from 'src/database/entities/Collection';
 import { Currency } from 'src/database/entities/Currency';
+import { StreamService } from './stream.service';
 
 @Controller('stream')
 export class StreamController {
   logger = new Logger(StreamController.name);
+
+  constructor(private stream: StreamService) {}
+
+  @Post('market')
+  async marketStream(@Body() body: IWebhook) {
+    if (!body.streamId || !body.confirmed) {
+      return;
+    }
+    const data = Moralis.Streams.parsedLogs(body);
+    this.logger.log(`Stream Market 2: ${body.streamId}`);
+    console.log(data);
+
+    const eventData = data[0] as any;
+    const { seller, buyer, offer } = eventData;
+
+    const log = body.logs[0];
+
+    const tokenId = Web3.utils.toHex(eventData.tokenId);
+    const tokenAddress = process.env.MEDIA_CONTRACT.toLowerCase();
+
+    await this.stream.handleOffer(
+      tokenId,
+      tokenAddress,
+      log,
+      offer,
+      seller,
+      buyer,
+    );
+
+    this.logger.log(`Stream Market Success: ${body.streamId}`);
+  }
 
   @Post('market2')
   async market2Stream(@Body() body: IWebhook) {
@@ -32,90 +64,24 @@ export class StreamController {
       return;
     }
     const data = Moralis.Streams.parsedLogs(body);
-    this.logger.log('Stream Market 2:');
+    this.logger.log(`Stream Market 2: ${body.streamId}`);
     console.log(data);
     const eventData = data[0] as any;
     const { tokenAddress, seller, buyer, offer } = eventData;
     const log = body.logs[0];
 
-    const tokenId = Web3.utils.toNumber(eventData.tokenId);
+    const tokenId = Web3.utils.toNumber(eventData.tokenId).toString();
 
-    const nft = await Nft.findOne({
-      where: {
-        tokenId: `${tokenId}`,
-        tokenAddress: tokenAddress.toLowerCase(),
-      },
-      relations: ['owner'],
-    });
-
-    if (!nft) {
-      throw new UnprocessableEntityException(
-        `Nft does not exist for tokenId: ${tokenId}`,
-      );
-    }
-
-    const activity = await Activity.findOne({
-      where: {
-        txHash: log.transactionHash,
-        logIndex: +log.logIndex - 1,
-      },
-    });
-
-    if (!activity) {
-      throw new UnprocessableEntityException(`Transfer activity missing`);
-    }
-
-    const ask =
-      nft.currentAskId && (await Ask.findOneBy({ id: nft.currentAskId }));
-
-    const currency = await Currency.findOneBy({
-      address: offer.erc20Address.toLowerCase(),
-    });
-    activity.event = 'Sale';
-    activity.amount = fromWei(Web3.utils.toBN(offer.amount), currency.decimals);
-    activity.currency = offer.erc20Address;
-
-    await activity.save();
-
-    const usd = +currency.usd * +activity.amount;
-
-    await Transaction.create({
-      amount: +activity.amount,
-      currency: activity.currency,
-      txHash: activity.txHash,
-      collectionId: nft.collectionId,
-      buyer,
+    await this.stream.handleOffer(
+      tokenId,
+      tokenAddress,
+      log,
+      offer,
       seller,
-      usd,
-      ...nft.tokenIdentity,
-    }).save();
+      buyer,
+    );
 
-    const user = await User.findByPubKey(seller);
-
-    const isBuying = ask && ask.typedData.signature === offer.signature;
-
-    const notification = Notification.create({
-      user,
-      text: isBuying
-        ? 'One of your nfts has been sold.'
-        : 'One of your offers has been accepted.',
-      metadata: {
-        activityId: activity.id,
-        from: (isBuying ? buyer : seller).toLowerCase(),
-        offer: {
-          amount: activity.amount,
-          currency: activity.currency,
-        },
-        txHash: log.transactionHash,
-      },
-      ...nft.tokenIdentity,
-    });
-    await notification.save();
-
-    await Bid.delete({
-      bidder: (buyer as string).toLowerCase(),
-      ...nft.tokenIdentity,
-    });
+    this.logger.log(`Stream Market 2 Success: ${body.streamId}`);
   }
 
   @Post('nfts')
@@ -133,10 +99,15 @@ export class StreamController {
       logIndex,
     } = body.nftTransfers[0];
 
-    this.logger.log('Stream NFTs:');
+    this.logger.log(`Stream NFTs: ${body.streamId}`);
     this.logger.log(body.nftTransfers[0]);
 
-    const nft = await Nft.findOneBy({ tokenId, tokenAddress });
+    const nft = await Nft.findOne({
+      where: [
+        { tokenId, tokenAddress },
+        { tokenId: Web3.utils.toHex(tokenId), tokenAddress },
+      ],
+    });
     const isZunaNFT =
       tokenAddress.toLowerCase() === process.env.MEDIA_CONTRACT.toLowerCase();
 
@@ -193,5 +164,6 @@ export class StreamController {
       }
       await collection.calculateFloorPrice();
     }
+    this.logger.log(`Stream NFTs success: ${body.streamId}`);
   }
 }

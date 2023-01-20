@@ -9,20 +9,19 @@ export class CronService implements OnApplicationBootstrap {
   indexer: Indexer;
 
   constructor() {
-    this.indexer = new Indexer();
+    // this.indexer = new Indexer();
   }
 
   onApplicationBootstrap() {
-    // this.indexer.indexFromStartBlock();
     this.fetchCoins();
   }
 
-  @Cron('*/10 * * * * *')
-  handleCron() {
-    if (!process.env.NO_INDEXING) {
-      this.indexer.index();
-    }
-  }
+  // @Cron('*/10 * * * * *')
+  // handleCron() {
+  //   if (!process.env.NO_INDEXING) {
+  //     this.indexer.index();
+  //   }
+  // }
 
   @Cron('*/30 * * * *')
   async fetchCoins() {
