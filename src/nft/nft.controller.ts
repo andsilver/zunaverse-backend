@@ -24,6 +24,7 @@ import { User } from 'src/database/entities/User';
 import { Currency } from 'src/database/entities/Currency';
 import { CurrentUser } from 'src/shared/decorators/current-user.decorator';
 import { AuthGuard } from 'src/shared/guards/auth.guard';
+import { ShortLink } from 'src/database/entities/ShortLink';
 
 @Controller('nft')
 export class NftController {
@@ -718,5 +719,19 @@ export class NftController {
     await nft.burn();
 
     return { success: true };
+  }
+
+  @Post(':tokenAddress/:tokenId/short-link')
+  async generateShortLink(
+    @Param('tokenAddress') tokenAddress: string,
+    @Param('tokenId') tokenId: string,
+  ) {
+    tokenAddress = tokenAddress.toLowerCase();
+
+    const shortLink = await ShortLink.findOrCreate(
+      tokenAddress.toLowerCase(),
+      tokenId,
+    );
+    return shortLink;
   }
 }

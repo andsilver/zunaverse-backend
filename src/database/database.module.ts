@@ -18,6 +18,7 @@ import { UserBuyHistory } from './entities/UserBuyHistory';
 import { Reward } from './entities/Reward';
 import { RewardDetail } from './entities/RewardDetail';
 import { Currency } from './entities/Currency';
+import { ShortLink } from './entities/ShortLink';
 // import { TopSeller } from './views/TopSeller';
 
 @Module({
@@ -53,6 +54,7 @@ import { Currency } from './entities/Currency';
         Reward,
         RewardDetail,
         Currency,
+        ShortLink,
         // TopSeller,
       ],
       synchronize: true,

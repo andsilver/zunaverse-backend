@@ -1,17 +1,19 @@
-import { Controller, Get, Query, Res } from '@nestjs/common';
+import { Controller, Get, Param, Res } from '@nestjs/common';
 import { Response } from 'express';
 import { Nft } from 'src/database/entities/Nft';
+import { ShortLink } from 'src/database/entities/ShortLink';
 
 @Controller('links')
 export class ShareLinkController {
-  @Get('nft')
-  async shareNftLink(@Query() query: any, @Res() res: Response) {
-    const tokenId = query.tokenId;
-    const tokenAddress = query.tokenAddress?.toLowerCase();
+  @Get(':id')
+  async shareNftLink(@Param('id') id: string, @Res() res: Response) {
+    const shortLink = await ShortLink.findOneBy({ id });
 
-    if (!tokenId || !tokenAddress) {
+    if (!shortLink) {
       return res.redirect('https://zunaverse.io');
     }
+    const { tokenAddress, tokenId } = shortLink;
+
     const nft =
       (await Nft.findOneBy({ tokenId, tokenAddress })) ||
       (await Nft.getNftFromMoralis(tokenAddress, tokenId));
