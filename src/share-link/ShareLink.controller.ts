@@ -28,13 +28,12 @@ export class ShareLinkController {
     const url = `https://zunaverse.io/items/${tokenAddress}/${tokenId}`;
     const image = nft.thumbnail;
 
-    console.log(title, description, url, image);
-
     return res.send(`
         <!doctype html>
         <html>
         <head>
             <title>${title}</title>
+            <meta http-equiv="refresh" content="1;${url}">
             <meta name="title" content=${title} />
             <meta name="description" content=${description} />
 
