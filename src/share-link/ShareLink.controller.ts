@@ -33,7 +33,7 @@ export class ShareLinkController {
         <html>
         <head>
             <title>${title}</title>
-            <meta http-equiv="refresh" content="1;${url}">
+            <meta http-equiv="refresh" content="0;${url}">
             <meta name="title" content=${title} />
             <meta name="description" content=${description} />
 
