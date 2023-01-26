@@ -8,11 +8,14 @@ export class ShortLink extends BaseEntity {
   @PrimaryColumn()
   id: string;
 
-  @Column()
+  @Column({ nullable: true })
   tokenAddress: string;
 
-  @Column()
+  @Column({ nullable: true })
   tokenId: string;
+
+  @Column({ nullable: true })
+  collectionId: number;
 
   static async findOrCreate(tokenAddress: string, tokenId: string) {
     let shortlink = await ShortLink.findOneBy({

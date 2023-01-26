@@ -24,6 +24,9 @@ import {
   uploadBannerImageCloudinary,
   uploadImageCloudinary,
 } from 'src/shared/utils/cloudinary';
+import { ShortLink } from 'src/database/entities/ShortLink';
+import { randomUUID } from 'crypto';
+
 @Controller('collection')
 export class CollectionController {
   constructor(private cloudinary: CloudinaryService) {}
@@ -59,6 +62,12 @@ export class CollectionController {
     const collection = Collection.create(body);
     collection.owner = user;
     await collection.save();
+
+    await ShortLink.create({
+      id: randomUUID(),
+      collectionId: collection.id,
+    }).save();
+
     return collection;
   }
 
@@ -110,6 +119,10 @@ export class CollectionController {
       where: { id },
       relations: ['owner'],
     });
+    const shortLink = await ShortLink.findOneBy({
+      collectionId: collection.id,
+    });
+    collection.shortLink = shortLink;
     return collection;
   }
 

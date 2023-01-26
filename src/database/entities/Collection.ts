@@ -3,6 +3,7 @@ import { Ask } from './Ask';
 import { Currency } from './Currency';
 import { Nft } from './Nft';
 import { PrimaryEntity } from './primary-entity';
+import { ShortLink } from './ShortLink';
 import { User } from './User';
 
 @Entity('Collections')
@@ -68,6 +69,7 @@ export class Collection extends PrimaryEntity {
   category: string;
 
   postImages: string[] = [];
+  shortLink: ShortLink;
 
   async calculateMetrics() {
     this.items = await Nft.count({ where: { collectionId: this.id } });

@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { randomUUID } from 'crypto';
 import { IsNull } from 'typeorm';
 import Web3 from 'web3';
 import { Activity } from './database/entities/Activity';
@@ -12,6 +13,7 @@ import { Nft } from './database/entities/Nft';
 import { Notification } from './database/entities/Notification';
 import { Reward } from './database/entities/Reward';
 import { RewardDetail } from './database/entities/RewardDetail';
+import { ShortLink } from './database/entities/ShortLink';
 import { Transaction } from './database/entities/Transaction';
 import { User } from './database/entities/User';
 import { CloudinaryService } from './shared/services/cloudinary.service';
@@ -45,7 +47,20 @@ export class FixService {
 
   async fix() {
     // await this.addCoins();
-    await this.burn();
+    // await this.burn();
+    await this.collectionShortLinks();
+  }
+
+  async collectionShortLinks() {
+    await ShortLink.delete({});
+    const collections = await Collection.find({});
+
+    for (const c of collections) {
+      const s = new ShortLink();
+      s.id = randomUUID();
+      s.collectionId = c.id;
+      await s.save();
+    }
   }
 
   async burn() {

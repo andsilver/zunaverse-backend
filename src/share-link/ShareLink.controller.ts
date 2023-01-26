@@ -1,5 +1,6 @@
 import { Controller, Get, Param, Res } from '@nestjs/common';
 import { Response } from 'express';
+import { Collection } from 'src/database/entities/Collection';
 import { Nft } from 'src/database/entities/Nft';
 import { ShortLink } from 'src/database/entities/ShortLink';
 
@@ -12,21 +13,35 @@ export class ShareLinkController {
     if (!shortLink) {
       return res.redirect('https://zunaverse.io');
     }
-    const { tokenAddress, tokenId } = shortLink;
+    const { tokenAddress, tokenId, collectionId } = shortLink;
 
-    const nft =
-      (await Nft.findOneBy({ tokenId, tokenAddress })) ||
-      (await Nft.getNftFromMoralis(tokenAddress, tokenId));
+    let title, description, url, image;
 
-    if (!nft) {
-      return res.redirect('https://zunaverse.io');
+    if (collectionId) {
+      const collection = await Collection.findOneBy({ id: collectionId });
+
+      if (!collection) {
+        return res.redirect('https://zunaverse.io');
+      }
+      title = collection.name;
+      description = collection.description;
+      url = `https://zunaverse.io/collections/${collection.id}`;
+      image = collection.image;
+    } else {
+      const nft =
+        (await Nft.findOneBy({ tokenId, tokenAddress })) ||
+        (await Nft.getNftFromMoralis(tokenAddress, tokenId));
+
+      if (!nft) {
+        return res.redirect('https://zunaverse.io');
+      }
+      title = nft.name;
+      description = nft.description;
+      url = `https://zunaverse.io/items/${tokenAddress}/${tokenId}`;
+      image = nft.thumbnail;
     }
-    res.set('content-type', 'text/html');
 
-    const title = nft.name;
-    const description = nft.description;
-    const url = `https://zunaverse.io/items/${tokenAddress}/${tokenId}`;
-    const image = nft.thumbnail;
+    res.set('content-type', 'text/html');
 
     return res.send(`
         <!doctype html>
