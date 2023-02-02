@@ -20,7 +20,9 @@ export class RewardsService {
   controllerAddress: string;
 
   constructor() {
-    // this.initContract();
+    if (process.env.NODE_ENV === 'production') {
+      this.initContract();
+    }
   }
 
   async initContract() {
