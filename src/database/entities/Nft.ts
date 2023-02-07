@@ -155,18 +155,18 @@ export class Nft extends PrimaryEntity {
   async resizeNftImage(save?: boolean) {
     Logger.log(`Processing NFT image: ${this.name}`);
     const imageUrl = this.image.replace('ipfs://', process.env.PINATA_GATE_WAY);
-    let downloadPath = `${process.env.UPLOAD_FOLDER}/`;
+    let downloadPath = `${process.env.UPLOAD_FOLDER}/${this.tokenAddress}_${this.tokenId}.png`;
     Logger.log(`Nft image downloading: ${imageUrl}`);
 
     try {
-      await downloadFile(imageUrl, downloadPath);
+      const { filename } = await downloadFile(imageUrl, downloadPath);
       Logger.log(`Nft image downloaded: ${this.name}`);
-      const file = fs.statSync(downloadPath);
+      const file = fs.statSync(filename);
 
       if (file.size > 20971520) {
         const outputpath = `${process.env.UPLOAD_FOLDER}/${this.tokenAddress}_${this.tokenId}_resized`;
-        await sharp(downloadPath).resize(600, null).toFile(outputpath);
-        fs.unlinkSync(downloadPath);
+        await sharp(filename).resize(600, null).toFile(outputpath);
+        fs.unlinkSync(filename);
         downloadPath = outputpath;
         Logger.log(`Nft image resized: ${this.name}`);
       }
