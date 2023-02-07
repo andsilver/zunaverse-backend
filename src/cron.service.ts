@@ -23,9 +23,7 @@ export class CronService implements OnApplicationBootstrap {
 
   @Cron('*/10 * * * * *')
   handleCron() {
-    // if (!process.env.NO_INDEXING) {
     this.indexer.index(this.stream);
-    // }
   }
 
   @Cron('*/30 * * * *')
@@ -40,7 +38,7 @@ export class CronService implements OnApplicationBootstrap {
   }
 
   async fixNftTransfers() {
-    const fromBlock = 26949686;
+    const fromBlock = 25449520;
 
     const chain =
       process.env.NODE_ENV === 'production'
@@ -62,7 +60,7 @@ export class CronService implements OnApplicationBootstrap {
         tx.transaction_hash,
         tx.from_address,
         tx.to_address,
-        tx.log_index,
+        +tx.log_index,
         tx.block_timestamp,
       );
     }

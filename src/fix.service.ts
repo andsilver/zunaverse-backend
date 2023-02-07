@@ -49,6 +49,10 @@ export class FixService {
   }
 
   async fix() {
+    await this.fixTokenId();
+  }
+
+  async fixNftOwners() {
     // await this.addCoins();
     // await this.burn();
     // await this.collectionShortLinks();
@@ -56,8 +60,6 @@ export class FixService {
       process.env.NODE_ENV === 'production'
         ? EvmChain.BSC
         : EvmChain.BSC_TESTNET;
-
-    await this.fixTokenId();
 
     const nfts = await Nft.find({ relations: ['owner'] });
 
@@ -143,15 +145,80 @@ export class FixService {
   }
 
   async fixTokenId() {
-    const nfts = await Nft.find({ relations: ['owner'] });
+    // const nfts = await Nft.find({ relations: ['owner'] });
 
-    for (const nft of nfts) {
-      if (!nft.tokenId.includes('0x')) {
+    // for (const nft of nfts) {
+    //   if (!nft.tokenId.includes('0x')) {
+    //     continue;
+    //   }
+    //   const tokenId = Web3.utils.hexToNumberString(nft.tokenId);
+    //   nft.tokenId = tokenId;
+    //   await nft.save();
+    // }
+    const activities = await Activity.find({});
+
+    for (const n of activities) {
+      if (!n.tokenId || !n.tokenId.includes('0x')) {
         continue;
       }
-      const tokenId = Web3.utils.hexToNumberString(nft.tokenId);
-      nft.tokenId = tokenId;
-      await nft.save();
+      const tokenId = Web3.utils.hexToNumberString(n.tokenId);
+      n.tokenId = tokenId;
+      await n.save();
+    }
+
+    const bids = await Bid.find({});
+
+    for (const n of bids) {
+      if (!n.tokenId || !n.tokenId.includes('0x')) {
+        continue;
+      }
+      const tokenId = Web3.utils.hexToNumberString(n.tokenId);
+      n.tokenId = tokenId;
+      await n.save();
+    }
+
+    const asks = await Ask.find({});
+
+    for (const n of asks) {
+      if (!n.tokenId || !n.tokenId.includes('0x')) {
+        continue;
+      }
+      const tokenId = Web3.utils.hexToNumberString(n.tokenId);
+      n.tokenId = tokenId;
+      await n.save();
+    }
+
+    const ffs = await Favorite.find({});
+
+    for (const n of ffs) {
+      if (!n.tokenId || !n.tokenId.includes('0x')) {
+        continue;
+      }
+      const tokenId = Web3.utils.hexToNumberString(n.tokenId);
+      n.tokenId = tokenId;
+      await n.save();
+    }
+
+    const links = await ShortLink.find({});
+
+    for (const n of links) {
+      if (!n.tokenId || !n.tokenId.includes('0x')) {
+        continue;
+      }
+      const tokenId = Web3.utils.hexToNumberString(n.tokenId);
+      n.tokenId = tokenId;
+      await n.save();
+    }
+
+    const ts = await Transaction.find({});
+
+    for (const n of ts) {
+      if (!n.tokenId || !n.tokenId.includes('0x')) {
+        continue;
+      }
+      const tokenId = Web3.utils.hexToNumberString(n.tokenId);
+      n.tokenId = tokenId;
+      await n.save();
     }
   }
 
