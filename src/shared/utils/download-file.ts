@@ -1,21 +1,9 @@
-import * as stream from 'stream';
-import { promisify } from 'util';
-import Axios from 'axios';
-import { createWriteStream } from 'fs';
+import download from 'image-downloader';
 
-const finished = promisify(stream.finished);
-
-export async function downloadFile(
-  fileUrl: string,
-  outputLocationPath: string,
-) {
-  const writer = createWriteStream(outputLocationPath);
-
-  const { data } = await Axios({
-    method: 'get',
-    url: fileUrl,
-    responseType: 'stream',
+export async function downloadFile(url: string, dest: string, timeout = 2000) {
+  return download.image({
+    url,
+    dest,
+    timeout,
   });
-  data.pipe(writer);
-  return finished(writer);
 }

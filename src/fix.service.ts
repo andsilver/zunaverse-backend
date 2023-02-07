@@ -1,7 +1,10 @@
+import { EvmChain } from '@moralisweb3/common-evm-utils';
 import { Injectable, Logger } from '@nestjs/common';
 import { randomUUID } from 'crypto';
+import Moralis from 'moralis';
 import { IsNull } from 'typeorm';
 import Web3 from 'web3';
+import { ACTIVITY_EVENTS, BURN_ADDRESSES } from './consts';
 import { Activity } from './database/entities/Activity';
 import { Ask } from './database/entities/Ask';
 import { Bid } from './database/entities/Bid';
@@ -48,7 +51,109 @@ export class FixService {
   async fix() {
     // await this.addCoins();
     // await this.burn();
-    await this.collectionShortLinks();
+    // await this.collectionShortLinks();
+    const chain =
+      process.env.NODE_ENV === 'production'
+        ? EvmChain.BSC
+        : EvmChain.BSC_TESTNET;
+
+    await this.fixTokenId();
+
+    return;
+
+    const nfts = await Nft.find({ relations: ['owner'] });
+
+    for (const nft of nfts) {
+      const tokenId = nft.tokenId;
+
+      const result = await Moralis.EvmApi.nft.getNFTTokenIdOwners({
+        tokenId,
+        address: nft.tokenAddress,
+        chain,
+      });
+      const {
+        result: [res],
+      } = result.toJSON();
+
+      if (nft.minted && !res) {
+        console.log('Burned NFT:\n', nft);
+        continue;
+      }
+
+      if (!res) {
+        if (!nft.minted) {
+          continue;
+        }
+        console.log('No Owner: \n', nft);
+        continue;
+      }
+
+      const realOwnerPubKey = res.owner_of;
+
+      if (realOwnerPubKey !== nft.owner.pubKey) {
+        console.log(nft);
+
+        const realOwner = await User.findOrCreate(realOwnerPubKey);
+
+        if (BURN_ADDRESSES.includes(realOwnerPubKey)) {
+          await nft.burn();
+          continue;
+        }
+
+        let cursor = '';
+
+        while (1) {
+          const r = await Moralis.EvmApi.nft.getNFTTransfers({
+            address: nft.tokenAddress,
+            tokenId: nft.tokenId,
+            chain,
+            limit: 100,
+            cursor,
+          });
+
+          const res = r.toJSON();
+
+          if (res.cursor) {
+            cursor = res.cursor;
+            continue;
+          }
+          const lastTx = res.result.pop();
+
+          nft.owner = realOwner;
+          nft.minted = true;
+          nft.currentAskId = null;
+
+          await nft.save();
+
+          await Ask.delete(nft.tokenIdentity);
+          await Bid.delete({ bidder: realOwner.pubKey, ...nft.tokenIdentity });
+          await Activity.create({
+            txHash: lastTx.transaction_hash,
+            logIndex: lastTx.log_index,
+            event: ACTIVITY_EVENTS.TRANSFERS,
+            userAddress: lastTx.from_address.toLowerCase(),
+            receiver: lastTx.to_address.toLowerCase(),
+            createdAt: `${+lastTx.block_timestamp * 1000}`,
+            ...nft.tokenIdentity,
+          }).save();
+
+          break;
+        }
+      }
+    }
+  }
+
+  async fixTokenId() {
+    const nfts = await Nft.find({ relations: ['owner'] });
+
+    for (const nft of nfts) {
+      if (!nft.tokenId.includes('0x')) {
+        continue;
+      }
+      const tokenId = Web3.utils.hexToNumberString(nft.tokenId);
+      nft.tokenId = tokenId;
+      await nft.save();
+    }
   }
 
   async collectionShortLinks() {
@@ -96,6 +201,8 @@ export class FixService {
     await collection.calculateMetrics();
     await collection.calculateFloorPrice();
   }
+
+  async fixNftTransfers() {}
 
   async addCoins() {
     await Currency.create({

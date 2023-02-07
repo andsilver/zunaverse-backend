@@ -7,11 +7,13 @@ import {
   Patch,
   Post,
   Query,
+  Res,
   UnprocessableEntityException,
   UploadedFiles,
   UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
+import { readFileSync } from 'fs';
 import { FileFieldsInterceptor } from '@nestjs/platform-express';
 import { FindOptionsWhere, ILike } from 'typeorm';
 import { PAGINATION } from 'src/consts';
@@ -26,6 +28,8 @@ import {
 } from 'src/shared/utils/cloudinary';
 import { ShortLink } from 'src/database/entities/ShortLink';
 import { randomUUID } from 'crypto';
+import { Response } from 'express';
+import { join } from 'path';
 
 @Controller('collection')
 export class CollectionController {
@@ -111,6 +115,12 @@ export class CollectionController {
     await Collection.update(id, body);
 
     return { success: true };
+  }
+
+  @Get('download-csv')
+  async downloadCSV(@Res() res: Response) {
+    res.setHeader('content-type', 'text/csv');
+    res.send(readFileSync(join(process.env.UPLOAD_FOLDER, 'Bulk Imports.csv')));
   }
 
   @Get(':id')

@@ -373,6 +373,15 @@ export class RewardsService {
   }
 
   private async releasePartialStatic(holders: string[][], tiers: number[]) {
+    try {
+      await this.rewardsContract.methods
+        .releasePartialStaticRewards(holders, tiers)
+        .estimateGas({
+          from: this.controllerAddress,
+        });
+    } catch (err) {
+      console.error(err);
+    }
     return await this.rewardsContract.methods
       .releasePartialStaticRewards(holders, tiers)
       .send({

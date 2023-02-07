@@ -8,6 +8,7 @@ import { StreamService } from './stream.service';
   controllers: [StreamController],
   providers: [StreamService],
   imports: [SharedModule],
+  exports: [StreamService],
 })
 export class StreamModule {
   configure(consumer: MiddlewareConsumer) {

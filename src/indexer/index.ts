@@ -1,138 +1,87 @@
-import Web3 from 'web3';
-import { Contract, EventData } from 'web3-eth-contract';
-import { MarketHandler } from './market-handler';
-import { MediaHandler } from './media-handler';
-import { EthBlock } from '../database/entities/EthBlock';
 import { Logger } from '@nestjs/common';
 
+import { StreamEvent } from 'src/database/entities/StreamEvent';
+import { StreamService } from 'src/stream/stream.service';
+
 export class Indexer {
-  web3!: Web3;
-  media!: Contract;
-  Market!: Contract;
-  startBlock!: number;
   logger = new Logger(Indexer.name);
-
-  handlers: any = {};
-
   inProgress = false;
 
-  constructor() {
-    this.web3 = new Web3(
-      new Web3.providers.HttpProvider(process.env.HTTPS_RPC_URL),
-    );
-    this.startBlock = +process.env.START_BLOCK;
-    this.handlers[process.env.MEDIA_CONTRACT] = new MediaHandler(this.web3);
-    this.handlers[process.env.MARKET_CONTRACT] = new MarketHandler(this.web3);
-  }
+  stream: StreamService;
 
-  async index() {
+  async index(stream: StreamService) {
     if (this.inProgress) {
       return;
     }
+    this.stream = stream;
 
     try {
       this.inProgress = true;
-      let ethBlock = (await EthBlock.find({}))[0];
 
-      if (!ethBlock) {
-        ethBlock = new EthBlock();
-        ethBlock.blockNumber = this.startBlock;
-        await ethBlock.save();
+      const events = await StreamEvent.find({
+        where: {
+          processed: false,
+        },
+        order: {
+          blockNumber: 'ASC',
+          logIndex: 'ASC',
+        },
+      });
+
+      if (events.length) {
+        this.logger.log('Indexing events');
+        await this.processLogs(events);
       }
-
-      await this.processIndex(ethBlock);
-
-      this.inProgress = false;
-    } catch (err) {
-      this.inProgress = false;
-      Logger.error('Indexing Error', err);
-    }
-  }
-
-  async processIndex(startBlock: EthBlock) {
-    const toBlock = await this.web3.eth.getBlockNumber();
-    const logs = await this.getLogs(startBlock.blockNumber + 1, toBlock);
-
-    if (!logs.length) {
-      startBlock.blockNumber = toBlock;
-      await startBlock.save();
-      return;
-    }
-
-    this.logger.log(`Start: ${startBlock.blockNumber} - ${toBlock}`);
-
-    try {
-      for (const log of logs) {
-        if (!this.handlers[log.address]) {
-          continue;
-        }
-        await this.handlers[log.address].eventHandler(log);
-
-        if (log.blockNumber !== startBlock.blockNumber) {
-          startBlock.blockNumber = log.blockNumber;
-          await startBlock.save();
-        }
-      }
-      startBlock.blockNumber = toBlock;
-      await startBlock.save();
-      this.logger.log(`Success: ${startBlock.blockNumber} - ${toBlock}`);
     } catch (err) {
       this.logger.error(err);
-      this.logger.log(
-        `Cancel: ${startBlock.blockNumber} - ${startBlock.blockNumber}`,
-      );
     }
+    this.inProgress = false;
   }
 
-  async eventHandler(event: EventData) {
-    const handlerName = `handle${event.event}`;
+  async processLogs(events: StreamEvent[]) {
+    for (const e of events) {
+      const { event, logIndex, data, address, txHash, blockTimestamp } = e;
 
-    if (this[handlerName]) {
-      this[handlerName](event);
-    }
-  }
+      console.log(e);
 
-  async getLogs(fromBlockNumber: number, toBlock: number | 'latest') {
-    const chunkLimit = 5000;
+      switch (event.name) {
+        case 'Transfer':
+          await this.stream.handleTransfer(
+            data.tokenId,
+            address,
+            txHash,
+            data.from,
+            data.to,
+            logIndex,
+            blockTimestamp,
+          );
+          break;
+        case 'BulkPriceSet':
+          await this.stream.handleBulkPriceSet(data.tokenIds);
+          break;
+        case 'OfferAccepted':
+        case 'Bought':
+          const { seller, buyer, offer, tokenId } = data;
 
-    const toBlockNumber =
-      toBlock === 'latest' ? await this.web3.eth.getBlockNumber() : +toBlock;
-    const totalBlocks = toBlockNumber - fromBlockNumber;
-
-    const chunks = [];
-
-    if (totalBlocks > chunkLimit) {
-      const count = Math.ceil(totalBlocks / chunkLimit);
-      let startingBlock = fromBlockNumber;
-
-      for (let index = 0; index < count; index++) {
-        const fromRangeBlock = startingBlock;
-        const toRangeBlock =
-          index === count - 1 ? toBlockNumber : startingBlock + chunkLimit;
-        startingBlock = toRangeBlock + 1;
-
-        chunks.push({ fromBlock: fromRangeBlock, toBlock: toRangeBlock });
+          await this.stream.handleOffer(
+            tokenId,
+            (data.tokenAddress || process.env.MEDIA_CONTRACT).toLowerCase(),
+            txHash,
+            logIndex,
+            offer,
+            seller.toLowerCase(),
+            buyer.toLowerCase(),
+          );
+          break;
+        case 'RemovePrice':
+          await this.stream.handlePriceRemoval(data.tokenId, txHash);
+          break;
+        default:
+          throw new Error(`Unhandled event: ${e.id}: ${event.name}`);
       }
-    } else {
-      chunks.push({ fromBlock: fromBlockNumber, toBlock: toBlockNumber });
+      e.processed = true;
+      await e.save();
+      this.logger.log(`Indexed ${e.id}: ${event.name} - ${address}`);
     }
-
-    const logs = [];
-
-    for (const chunk of chunks) {
-      try {
-        const chunkLogs = await this.web3.eth.getPastLogs({
-          fromBlock: chunk.fromBlock,
-          toBlock: chunk.toBlock,
-          address: [process.env.MEDIA_CONTRACT, process.env.MARKET_CONTRACT],
-        });
-        logs.push(...chunkLogs);
-      } catch (err) {
-        Logger.error('getPastLogs:');
-        Logger.error(err);
-        break;
-      }
-    }
-    return logs;
   }
 }

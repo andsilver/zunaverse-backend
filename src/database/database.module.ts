@@ -19,6 +19,7 @@ import { Reward } from './entities/Reward';
 import { RewardDetail } from './entities/RewardDetail';
 import { Currency } from './entities/Currency';
 import { ShortLink } from './entities/ShortLink';
+import { StreamEvent } from './entities/StreamEvent';
 // import { TopSeller } from './views/TopSeller';
 
 @Module({
@@ -55,7 +56,7 @@ import { ShortLink } from './entities/ShortLink';
         RewardDetail,
         Currency,
         ShortLink,
-        // TopSeller,
+        StreamEvent,
       ],
       synchronize: true,
     }),

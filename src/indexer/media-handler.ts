@@ -7,7 +7,7 @@ import { getEventAbi } from './utils';
 import { Nft } from '../database/entities/Nft';
 import { User } from '../database/entities/User';
 import { Ask } from '../database/entities/Ask';
-import { ACTIVITY_EVENTS, ZERO_ADDRESS } from '../consts';
+import { ACTIVITY_EVENTS, BURN_ADDRESSES } from '../consts';
 import { Activity } from '../database/entities/Activity';
 import { Bid } from 'src/database/entities/Bid';
 import { Collection } from 'src/database/entities/Collection';
@@ -66,19 +66,22 @@ export class MediaHandler {
 
     try {
       const block = await this.web3.eth.getBlock(log.blockNumber);
-      const { from, to } = eventData;
 
-      const tokenId = Web3.utils.toHex(eventData.tokenId).toString();
+      const from = eventData.from.toLowerCase();
+      const to = eventData.to.toLowerCase();
 
-      const fromUser =
-        from !== ZERO_ADDRESS ? await User.findOrCreate(from) : null;
+      const tokenId = eventData.tokenId;
+
+      const fromUser = BURN_ADDRESSES.includes(from)
+        ? await User.findOrCreate(from)
+        : null;
 
       const nft = await Nft.findOneBy({
         tokenId,
         tokenAddress: process.env.MEDIA_CONTRACT.toLowerCase(),
       });
 
-      if (to === ZERO_ADDRESS) {
+      if (BURN_ADDRESSES.includes(to)) {
         await nft.burn();
         return;
       }
@@ -97,7 +100,7 @@ export class MediaHandler {
         await Ask.delete(nft.tokenIdentity);
       }
 
-      if (from !== ZERO_ADDRESS) {
+      if (BURN_ADDRESSES.includes(from)) {
         nft.owner = toUser;
 
         const activity = new Activity();

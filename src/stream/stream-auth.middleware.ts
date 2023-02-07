@@ -4,7 +4,7 @@ import {
   NestMiddleware,
   UnauthorizedException,
 } from '@nestjs/common';
-import { NextFunction } from 'express';
+import { NextFunction, Response } from 'express';
 import Moralis from 'moralis';
 import { IWebhook } from '@moralisweb3/streams-typings';
 
@@ -12,7 +12,7 @@ import { IWebhook } from '@moralisweb3/streams-typings';
 export class StreamAuthMiddleware implements NestMiddleware {
   logger = new Logger(StreamAuthMiddleware.name);
 
-  use(req, _res: Response, next: NextFunction) {
+  use(req, res: Response, next: NextFunction) {
     const body: IWebhook = req.body;
 
     if (
@@ -21,8 +21,14 @@ export class StreamAuthMiddleware implements NestMiddleware {
         signature: req.headers['x-signature'],
       })
     ) {
-      this.logger.log(`Incoming stream: ${body.tag}`);
-      return next();
+      if (body.confirmed) {
+        this.logger.log(`Incoming stream: ${body.streamId} - ${body.tag}`);
+        return next();
+      } else {
+        return res.status(200).json({
+          success: true,
+        });
+      }
     }
     throw new UnauthorizedException('Invalid Stream');
   }

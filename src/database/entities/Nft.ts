@@ -73,7 +73,7 @@ export class Nft extends PrimaryEntity {
   minted: boolean;
 
   @Column({ nullable: true })
-  mintedAt: number;
+  mintedAt: string;
 
   @Column({ nullable: true })
   txHash: string;
@@ -152,22 +152,35 @@ export class Nft extends PrimaryEntity {
     }
   }
 
-  async resizeNftImage() {
+  async resizeNftImage(save?: boolean) {
     Logger.log(`Processing NFT image: ${this.name}`);
     const imageUrl = this.image.replace('ipfs://', process.env.PINATA_GATE_WAY);
-    let downloadPath = `${process.env.UPLOAD_FOLDER}/${this.tokenAddress}_${this.tokenId}`;
-    await downloadFile(imageUrl, downloadPath);
-    const file = fs.statSync(downloadPath);
+    let downloadPath = `${process.env.UPLOAD_FOLDER}/`;
+    Logger.log(`Nft image downloading: ${imageUrl}`);
 
-    if (file.size > 20971520) {
-      const outputpath = `${process.env.UPLOAD_FOLDER}/${this.tokenAddress}_${this.tokenId}_resized`;
-      await sharp(downloadPath).resize(600, null).toFile(outputpath);
+    try {
+      await downloadFile(imageUrl, downloadPath);
+      Logger.log(`Nft image downloaded: ${this.name}`);
+      const file = fs.statSync(downloadPath);
+
+      if (file.size > 20971520) {
+        const outputpath = `${process.env.UPLOAD_FOLDER}/${this.tokenAddress}_${this.tokenId}_resized`;
+        await sharp(downloadPath).resize(600, null).toFile(outputpath);
+        fs.unlinkSync(downloadPath);
+        downloadPath = outputpath;
+        Logger.log(`Nft image resized: ${this.name}`);
+      }
+      const { secure_url } = await uploadNftImageCloudinary(downloadPath);
       fs.unlinkSync(downloadPath);
-      downloadPath = outputpath;
+      this.thumbnail = secure_url;
+    } catch (err) {
+      Logger.error(err);
+      this.thumbnail = imageUrl;
     }
-    const { secure_url } = await uploadNftImageCloudinary(downloadPath);
-    fs.unlinkSync(downloadPath);
-    this.thumbnail = secure_url;
+
+    if (save) {
+      await this.save();
+    }
     Logger.log(`Finished processing NFT image: ${this.name}`);
   }
 

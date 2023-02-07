@@ -11,11 +11,17 @@
       {
         "indexed": true,
         "internalType": "address",
+        "name": "tokenAddress",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "address",
         "name": "seller",
         "type": "address"
       },
       {
-        "indexed": true,
+        "indexed": false,
         "internalType": "address",
         "name": "buyer",
         "type": "address"
@@ -26,6 +32,11 @@
             "internalType": "uint256",
             "name": "tokenId",
             "type": "uint256"
+          },
+          {
+            "internalType": "address",
+            "name": "tokenAddress",
+            "type": "address"
           },
           {
             "internalType": "address",
@@ -49,25 +60,12 @@
           }
         ],
         "indexed": false,
-        "internalType": "struct Shared.Offer",
+        "internalType": "struct Offer",
         "name": "offer",
         "type": "tuple"
       }
     ],
     "name": "Bought",
-    "type": "event"
-  },
-  {
-    "anonymous": false,
-    "inputs": [
-      {
-        "indexed": false,
-        "internalType": "uint256[]",
-        "name": "tokenIds",
-        "type": "uint256[]"
-      }
-    ],
-    "name": "BulkPriceSet",
     "type": "event"
   },
   {
@@ -95,11 +93,17 @@
       {
         "indexed": true,
         "internalType": "address",
+        "name": "tokenAddress",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "address",
         "name": "seller",
         "type": "address"
       },
       {
-        "indexed": true,
+        "indexed": false,
         "internalType": "address",
         "name": "buyer",
         "type": "address"
@@ -110,6 +114,11 @@
             "internalType": "uint256",
             "name": "tokenId",
             "type": "uint256"
+          },
+          {
+            "internalType": "address",
+            "name": "tokenAddress",
+            "type": "address"
           },
           {
             "internalType": "address",
@@ -133,7 +142,7 @@
           }
         ],
         "indexed": false,
-        "internalType": "struct Shared.Offer",
+        "internalType": "struct Offer",
         "name": "offer",
         "type": "tuple"
       }
@@ -161,19 +170,6 @@
     "type": "event"
   },
   {
-    "anonymous": false,
-    "inputs": [
-      {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "tokenId",
-        "type": "uint256"
-      }
-    ],
-    "name": "RemovePrice",
-    "type": "event"
-  },
-  {
     "inputs": [
       {
         "internalType": "address",
@@ -189,43 +185,8 @@
           },
           {
             "internalType": "address",
-            "name": "erc20Address",
+            "name": "tokenAddress",
             "type": "address"
-          },
-          {
-            "internalType": "uint256",
-            "name": "amount",
-            "type": "uint256"
-          },
-          {
-            "internalType": "uint256",
-            "name": "createdAt",
-            "type": "uint256"
-          },
-          {
-            "internalType": "bytes",
-            "name": "signature",
-            "type": "bytes"
-          }
-        ],
-        "internalType": "struct Shared.Offer",
-        "name": "offer",
-        "type": "tuple"
-      }
-    ],
-    "name": "acceptOffer",
-    "outputs": [],
-    "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "components": [
-          {
-            "internalType": "uint256",
-            "name": "tokenId",
-            "type": "uint256"
           },
           {
             "internalType": "address",
@@ -248,12 +209,12 @@
             "type": "bytes"
           }
         ],
-        "internalType": "struct Shared.Offer[]",
-        "name": "_prices",
-        "type": "tuple[]"
+        "internalType": "struct Offer",
+        "name": "offer",
+        "type": "tuple"
       }
     ],
-    "name": "bulkPriceSet",
+    "name": "acceptOffer",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
@@ -274,6 +235,11 @@
           },
           {
             "internalType": "address",
+            "name": "tokenAddress",
+            "type": "address"
+          },
+          {
+            "internalType": "address",
             "name": "erc20Address",
             "type": "address"
           },
@@ -293,25 +259,12 @@
             "type": "bytes"
           }
         ],
-        "internalType": "struct Shared.Offer",
+        "internalType": "struct Offer",
         "name": "offer",
         "type": "tuple"
       }
     ],
     "name": "buy",
-    "outputs": [],
-    "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "uint256",
-        "name": "tokenId",
-        "type": "uint256"
-      }
-    ],
-    "name": "buyOnChain",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
@@ -379,11 +332,6 @@
         "internalType": "uint256",
         "name": "amount",
         "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "tokenId",
-        "type": "uint256"
       }
     ],
     "name": "getFeeAmounts",
@@ -402,16 +350,6 @@
         "internalType": "uint256",
         "name": "",
         "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "",
-        "type": "uint256"
-      },
-      {
-        "internalType": "address",
-        "name": "",
-        "type": "address"
       }
     ],
     "stateMutability": "view",
@@ -435,58 +373,6 @@
       }
     ],
     "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "uint256",
-        "name": "",
-        "type": "uint256"
-      }
-    ],
-    "name": "prices",
-    "outputs": [
-      {
-        "internalType": "uint256",
-        "name": "tokenId",
-        "type": "uint256"
-      },
-      {
-        "internalType": "address",
-        "name": "erc20Address",
-        "type": "address"
-      },
-      {
-        "internalType": "uint256",
-        "name": "amount",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "createdAt",
-        "type": "uint256"
-      },
-      {
-        "internalType": "bytes",
-        "name": "signature",
-        "type": "bytes"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "uint256",
-        "name": "tokenId",
-        "type": "uint256"
-      }
-    ],
-    "name": "removePrice",
-    "outputs": [],
-    "stateMutability": "nonpayable",
     "type": "function"
   },
   {
@@ -546,19 +432,6 @@
     "inputs": [
       {
         "internalType": "address",
-        "name": "_zunaAddress",
-        "type": "address"
-      }
-    ],
-    "name": "setZunaAddress",
-    "outputs": [],
-    "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "address",
         "name": "newOwner",
         "type": "address"
       }
@@ -566,19 +439,6 @@
     "name": "transferOwnership",
     "outputs": [],
     "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "zunaAddress",
-    "outputs": [
-      {
-        "internalType": "address",
-        "name": "",
-        "type": "address"
-      }
-    ],
-    "stateMutability": "view",
     "type": "function"
   }
 ]

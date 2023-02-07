@@ -11,11 +11,7 @@ import { User } from 'src/database/entities/User';
 import { Transaction } from 'src/database/entities/Transaction';
 import { Bid } from 'src/database/entities/Bid';
 import { Collection } from 'src/database/entities/Collection';
-import {
-  currencyAddressToSymbol,
-  fromWei,
-  getCurrency,
-} from 'src/shared/utils/currency';
+import { fromWei } from 'src/shared/utils/currency';
 import { Currency } from 'src/database/entities/Currency';
 
 export class MarketHandler {
@@ -70,7 +66,7 @@ export class MarketHandler {
     try {
       const { offer, seller, buyer } = eventData;
 
-      const tokenId = Web3.utils.toHex(eventData.tokenId).toString();
+      const tokenId = eventData.tokenId;
 
       const nft = await Nft.findOne({
         where: {
@@ -164,7 +160,7 @@ export class MarketHandler {
     try {
       const { offer, seller, buyer } = eventData;
 
-      const tokenId = Web3.utils.toHex(eventData.tokenId).toString();
+      const tokenId = Web3.utils.toNumber(eventData.tokenId).toString();
 
       const nft = await Nft.findOne({
         where: {
