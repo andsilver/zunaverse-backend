@@ -59,8 +59,6 @@ export class FixService {
 
     await this.fixTokenId();
 
-    return;
-
     const nfts = await Nft.find({ relations: ['owner'] });
 
     for (const nft of nfts) {
