@@ -63,6 +63,7 @@ export class FixService {
 
     for (const nft of nfts) {
       const tokenId = nft.tokenId;
+      await new Promise((resolve) => setTimeout(resolve, 1000));
 
       const result = await Moralis.EvmApi.nft.getNFTTokenIdOwners({
         tokenId,
