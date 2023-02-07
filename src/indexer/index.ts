@@ -9,8 +9,10 @@ export class Indexer {
 
   stream: StreamService;
 
+  retries = 0;
+
   async index(stream: StreamService) {
-    if (this.inProgress) {
+    if (this.inProgress || this.retries === 5) {
       return;
     }
     this.stream = stream;
@@ -32,8 +34,10 @@ export class Indexer {
         this.logger.log('Indexing events');
         await this.processLogs(events);
       }
+      this.retries = 0;
     } catch (err) {
       this.logger.error(err);
+      this.retries += 1;
     }
     this.inProgress = false;
   }

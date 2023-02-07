@@ -65,6 +65,7 @@ export class StreamService {
 
     const erc20Address = offer.erc20Address || offer[offer.length - 4];
     const amount = offer.amount || offer[offer.length - 3];
+    const signature = offer.signature || offer[offer.length - 1];
 
     const currency = await Currency.findOneBy({
       address: erc20Address.toLowerCase(),
@@ -92,7 +93,7 @@ export class StreamService {
     const buyerUser = await User.findByPubKey(buyer);
 
     const isBuying =
-      ask && (ask.typedData.signature === offer.signature || !offer.signature);
+      ask && (ask.typedData.signature === signature || !signature);
 
     const notification = Notification.create({
       user: isBuying ? sellerUser : buyerUser,
