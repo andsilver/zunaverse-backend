@@ -1,9 +1,9 @@
 import { Body, Controller, Logger, Post } from '@nestjs/common';
 import { IWebhook } from '@moralisweb3/streams-typings';
 
-import { StreamService } from './stream.service';
 import { ContractEvents } from '../shared/utils/contract-events';
 import { ContractType } from 'src/shared/types';
+import { IndexerService } from 'src/indexer/indexer.service';
 
 @Controller('stream')
 export class StreamController {
@@ -11,7 +11,7 @@ export class StreamController {
 
   eventManager: ContractEvents;
 
-  constructor(private stream: StreamService) {
+  constructor(private indexer: IndexerService) {
     this.eventManager = new ContractEvents();
   }
 
@@ -28,7 +28,7 @@ export class StreamController {
       ContractType.Market,
     );
     this.logger.log(`Stream Market Success: ${body.streamId}`);
-    return;
+    this.indexer.queueIndex();
   }
 
   @Post('market2')
@@ -46,7 +46,7 @@ export class StreamController {
     );
 
     this.logger.log(`Stream Market 2 Success: ${body.streamId}`);
-    return;
+    this.indexer.queueIndex();
   }
 
   @Post('nfts')
@@ -63,5 +63,6 @@ export class StreamController {
       ContractType.ERC721,
     );
     this.logger.log(`Stream NFTs success: ${body.streamId}`);
+    this.indexer.queueIndex();
   }
 }

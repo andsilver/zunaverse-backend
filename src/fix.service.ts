@@ -14,18 +14,18 @@ import { Currency } from './database/entities/Currency';
 import { Favorite } from './database/entities/Favorite';
 import { Nft } from './database/entities/Nft';
 import { Notification } from './database/entities/Notification';
-import { Reward } from './database/entities/Reward';
-import { RewardDetail } from './database/entities/RewardDetail';
 import { ShortLink } from './database/entities/ShortLink';
 import { Transaction } from './database/entities/Transaction';
 import { User } from './database/entities/User';
 import { CloudinaryService } from './shared/services/cloudinary.service';
-import { fetchCoins } from './shared/utils/coingecko';
-import { currencyAddressToSymbol } from './shared/utils/currency';
+import { StreamService } from './stream/stream.service';
 
 @Injectable()
 export class FixService {
-  constructor(private cloudinary: CloudinaryService) {}
+  constructor(
+    private cloudinary: CloudinaryService,
+    private stream: StreamService,
+  ) {}
 
   async addCollectionProperties() {
     await Collection.update(
@@ -268,7 +268,70 @@ export class FixService {
     await collection.calculateFloorPrice();
   }
 
-  async fixNftTransfers() {}
+  async fixNftTransfers() {
+    const fromBlock = 25449520;
+
+    const chain =
+      process.env.NODE_ENV === 'production'
+        ? EvmChain.BSC
+        : EvmChain.BSC_TESTNET;
+
+    const res = await Moralis.EvmApi.nft.getNFTContractTransfers({
+      address: process.env.MEDIA_CONTRACT,
+      chain,
+      fromBlock,
+    });
+
+    const txs = res.toJSON();
+
+    for (const tx of txs.result) {
+      await this.stream.handleTransfer(
+        tx.token_id,
+        tx.token_address,
+        tx.transaction_hash,
+        tx.from_address,
+        tx.to_address,
+        +tx.log_index,
+        tx.block_timestamp,
+      );
+    }
+  }
+
+  async fixBulkPriceSet() {
+    const fromBlock = 26949686;
+
+    const chain =
+      process.env.NODE_ENV === 'production'
+        ? EvmChain.BSC
+        : EvmChain.BSC_TESTNET;
+
+    const res = await Moralis.EvmApi.events.getContractEvents({
+      chain,
+      fromBlock,
+      address: process.env.MARKET_CONTRACT,
+      topic:
+        '0x70c2398672297895be58f2db6fb72c1f5395909f266db7bb25e557545cffdccb',
+      abi: {
+        anonymous: false,
+        inputs: [
+          {
+            indexed: false,
+            internalType: 'uint256[]',
+            name: 'tokenIds',
+            type: 'uint256[]',
+          },
+        ],
+        name: 'BulkPriceSet',
+        type: 'event',
+      },
+    });
+    const { result } = res.toJSON();
+    console.log(result);
+
+    for (const item of result) {
+      await this.stream.handleBulkPriceSet((item.data as any).tokenIds);
+    }
+  }
 
   async addCoins() {
     await Currency.create({

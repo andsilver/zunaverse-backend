@@ -226,6 +226,10 @@ export class Nft extends PrimaryEntity {
       tokenId,
       normalizeMetadata: true,
     });
+
+    if (!response) {
+      return null;
+    }
     const nft = response.toJSON();
     return Nft.noramlizeMoralisNft(nft);
   }
@@ -235,6 +239,10 @@ export class Nft extends PrimaryEntity {
     tokenId: string,
   ): Promise<Nft> {
     const nft = await Nft.getNftFromMoralis(tokenAddress, tokenId);
+
+    if (!nft) {
+      return null;
+    }
     const [owner, creator] = await Promise.all([
       User.findOrCreate(nft.owner.pubKey),
       User.findOrCreate(nft.creator.pubKey),

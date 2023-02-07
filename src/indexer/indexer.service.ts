@@ -1,21 +1,34 @@
-import { Logger } from '@nestjs/common';
+import { Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common';
 
 import { StreamEvent } from 'src/database/entities/StreamEvent';
 import { StreamService } from 'src/stream/stream.service';
 
-export class Indexer {
-  logger = new Logger(Indexer.name);
+@Injectable()
+export class IndexerService implements OnApplicationBootstrap {
+  logger = new Logger(IndexerService.name);
   inProgress = false;
 
-  stream: StreamService;
-
   retries = 0;
+  queue = 0;
 
-  async index(stream: StreamService) {
-    if (this.inProgress || this.retries === 5) {
+  constructor(private stream: StreamService) {}
+
+  onApplicationBootstrap() {
+    this.queueIndex();
+  }
+
+  queueIndex() {
+    this.queue += 1;
+  }
+
+  async index() {
+    if (!this.queue) {
       return;
     }
-    this.stream = stream;
+
+    if (this.inProgress || this.retries === 3) {
+      return;
+    }
 
     try {
       this.inProgress = true;
@@ -38,8 +51,14 @@ export class Indexer {
     } catch (err) {
       this.logger.error(err);
       this.retries += 1;
+      this.inProgress = false;
+      return;
     }
     this.inProgress = false;
+
+    if (this.queue) {
+      this.queue -= 1;
+    }
   }
 
   async processLogs(events: StreamEvent[]) {

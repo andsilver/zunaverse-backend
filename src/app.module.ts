@@ -21,6 +21,7 @@ import { SharedModule } from './shared/shared.module';
 import { StreamModule } from './stream/stream.module';
 import { UserModule } from './user/user.module';
 import { ShareLinkModule } from './share-link/ShareLink.module';
+import { IndexerModule } from './indexer/indexer.module';
 
 @Module({
   imports: [
@@ -40,6 +41,7 @@ import { ShareLinkModule } from './share-link/ShareLink.module';
     SharedModule,
     StreamModule,
     ShareLinkModule,
+    IndexerModule,
   ],
   controllers: [AppController],
   providers: [AppService, CronService, FixService, RewardsService],
