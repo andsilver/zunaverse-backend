@@ -112,7 +112,15 @@ export class CollectionController {
       body.banner = secure_url;
     }
 
-    await Collection.update(id, body);
+    const { name, description, category } = body;
+
+    name && (collection.name = name);
+    description && (collection.description = description);
+    category && (collection.category = category);
+
+    console.log(collection);
+
+    await collection.save();
 
     return { success: true };
   }
