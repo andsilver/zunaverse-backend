@@ -239,9 +239,7 @@ export class StreamService {
   ) {
     this.logger.log(`handleTransfer: ${tokenAddress}: ${tokenId}`);
 
-    const nft = await Nft.findOne({
-      where: [{ tokenId, tokenAddress }],
-    });
+    const nft = await Nft.findOneBy({ tokenId, tokenAddress });
     const isZunaNFT =
       tokenAddress.toLowerCase() === process.env.MEDIA_CONTRACT.toLowerCase();
 

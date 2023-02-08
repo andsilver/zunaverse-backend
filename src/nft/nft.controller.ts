@@ -141,7 +141,9 @@ export class NftController {
       );
 
     if (userAddress) {
-      qb = qb.where('Users.pubKey = :userAddress', { userAddress });
+      qb = qb.where('Users.pubKey = :userAddress', {
+        userAddress: userAddress.toLowerCase(),
+      });
     }
 
     if (creatorAddress) {
