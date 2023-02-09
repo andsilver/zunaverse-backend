@@ -107,16 +107,14 @@ export class Nft extends PrimaryEntity {
     if (this.tokenAddress !== process.env.MEDIA_CONTRACT.toLowerCase()) {
       return;
     }
-    const withoutPrefix = this.tokenId.slice(2);
-
     let endZero = 0;
 
-    while (withoutPrefix[endZero] === '0') {
+    while (this.tokenId[endZero] === '0') {
       endZero += 1;
     }
 
     if (endZero !== 0) {
-      this.tokenId = '0x' + withoutPrefix.slice(endZero);
+      this.tokenId = this.tokenId.slice(endZero);
     }
   }
 

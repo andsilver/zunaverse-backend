@@ -244,7 +244,7 @@ export class StreamService {
       tokenAddress.toLowerCase() === process.env.MEDIA_CONTRACT.toLowerCase();
 
     if (!nft) {
-      if (!isZunaNFT) {
+      if (!isZunaNFT || BURN_ADDRESSES.includes(to)) {
         return;
       }
       const web3 = new Web3(

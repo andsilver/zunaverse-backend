@@ -1,3 +1,5 @@
+import { BadRequestException } from '@nestjs/common';
+import { BURN_ADDRESSES } from 'src/consts';
 import {
   Entity,
   Column,
@@ -93,10 +95,16 @@ export class User extends PrimaryEntity {
     if (!pubKey) {
       return null;
     }
+    pubKey = pubKey.toLowerCase();
+
     let user = await this.findByPubKey(pubKey);
 
     if (user) {
       return user;
+    }
+
+    if (BURN_ADDRESSES.includes(pubKey)) {
+      throw new BadRequestException('Cannot create dead user');
     }
     user = User.create({
       pubKey,
