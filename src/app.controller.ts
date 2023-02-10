@@ -1,6 +1,7 @@
 import { Controller, Get, Query } from '@nestjs/common';
 import { In, IsNull, Not } from 'typeorm';
 import { Collection } from './database/entities/Collection';
+import { Currency } from './database/entities/Currency';
 import { Transaction } from './database/entities/Transaction';
 import { User } from './database/entities/User';
 
@@ -95,5 +96,10 @@ export class AppController {
       ...users.find((u) => u.pubKey === s.buyer.toLowerCase()),
       ...s,
     }));
+  }
+
+  @Get('currencies')
+  async getCurrencies() {
+    return await Currency.find({});
   }
 }

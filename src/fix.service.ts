@@ -1,8 +1,9 @@
 import { EvmChain } from '@moralisweb3/common-evm-utils';
 import { Injectable, Logger } from '@nestjs/common';
 import { randomUUID } from 'crypto';
+import { readFileSync, writeFileSync } from 'fs';
 import Moralis from 'moralis';
-import { IsNull } from 'typeorm';
+import { IsNull, LessThan, Not } from 'typeorm';
 import Web3 from 'web3';
 import { ACTIVITY_EVENTS, BURN_ADDRESSES } from './consts';
 import { Activity } from './database/entities/Activity';
@@ -49,7 +50,7 @@ export class FixService {
   }
 
   async fix() {
-    await this.fixTokenId();
+    await this.addCoins();
   }
 
   async fixNftOwners() {
@@ -335,19 +336,10 @@ export class FixService {
 
   async addCoins() {
     await Currency.create({
-      name: 'Zuna',
-      symbol: 'ZUNA',
-      coinId: 'zuna',
-      address: process.env.ZUNA_ADDRESS,
-      usd: 0,
-      decimals: 9,
-    }).save();
-
-    await Currency.create({
-      name: 'Wrapped BNB',
-      symbol: 'WBNB',
-      coinId: 'wbnb',
-      address: process.env.WBNB_ADDRESS,
+      name: 'Binance USD',
+      symbol: 'BUSD',
+      coinId: 'binance-usd',
+      address: process.env.BUSD_ADDRESS,
       usd: 0,
       decimals: 18,
     }).save();

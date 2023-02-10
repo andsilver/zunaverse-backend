@@ -14,7 +14,7 @@ export const fetchCoingeckoCoins = async (coinId: string) => {
   return coin;
 };
 
-export const fetchCoins = async (coinIds = ['wbnb', 'zuna']) => {
+export const fetchCoins = async (coinIds: string[]) => {
   const { data } = await axios.get(
     'https://api.coingecko.com/api/v3/coins/markets',
     {
@@ -29,7 +29,7 @@ export const fetchCoins = async (coinIds = ['wbnb', 'zuna']) => {
   const result = {};
 
   coinIds.forEach((coinId) => {
-    result[coinId] = data.find((i) => i.symbol === coinId);
+    result[coinId] = data.find((i) => i.id === coinId);
   });
 
   return result;

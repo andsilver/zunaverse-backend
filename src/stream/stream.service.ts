@@ -164,7 +164,6 @@ export class StreamService {
 
   async handleBulkPriceSet(tokenIds: string[]) {
     this.logger.log(`handleBulkPriceSet: ${tokenIds.join(', ')}`);
-    tokenIds = tokenIds.filter((tokenId) => tokenId !== '0');
 
     const web3 = new Web3(
       new Web3.providers.HttpProvider(process.env.HTTPS_RPC_URL),
@@ -179,6 +178,9 @@ export class StreamService {
     for (const tokenId of tokenIds) {
       const offer = await contract.methods.prices(tokenId).call();
 
+      if (+offer.amount === 0) {
+        continue;
+      }
       const tokenIdentity = {
         tokenId,
         tokenAddress: process.env.MEDIA_CONTRACT.toLowerCase(),

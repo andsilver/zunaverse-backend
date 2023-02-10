@@ -21,7 +21,7 @@ export class CronService implements OnApplicationBootstrap {
     }
   }
 
-  @Cron('*/50 * * * *')
+  @Cron('*/5 * * * *')
   async fetchCoins() {
     const currencies = await Currency.find({});
     const prices = await fetchCoins(currencies.map((c) => c.coinId));
