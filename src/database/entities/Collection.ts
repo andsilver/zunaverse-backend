@@ -68,6 +68,9 @@ export class Collection extends PrimaryEntity {
   @Column({ nullable: true })
   category: string;
 
+  @Column({ default: 0 })
+  order: number;
+
   postImages: string[] = [];
   shortLink: ShortLink;
 
