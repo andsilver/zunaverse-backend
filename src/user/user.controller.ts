@@ -32,6 +32,7 @@ import {
 } from 'src/shared/utils/cloudinary';
 import { RewardDetail } from 'src/database/entities/RewardDetail';
 import { MoralisService } from 'src/shared/services/moralis.service';
+import { convertIpfsIntoReadable } from 'src/shared/utils/helper';
 
 @Controller('user')
 export class UserController {
@@ -185,7 +186,7 @@ export class UserController {
       ...e.nft,
       favorited: user ? raw[index].favorited : false,
       favorites: raw[index].favorites,
-      image: e.nft.image.replace('ipfs://', process.env.PINATA_GATE_WAY),
+      image: convertIpfsIntoReadable(e.nft.image, e.nft.tokenAddress),
     }));
   }
 

@@ -21,4 +21,7 @@ export class Currency extends PrimaryEntity {
 
   @Column()
   decimals: number;
+
+  @Column({ nullable: true })
+  image: string;
 }

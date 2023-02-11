@@ -9,13 +9,8 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
 import fs from 'fs';
-import pinataSDK from '@pinata/sdk';
 import { AuthGuard } from 'src/shared/guards/auth.guard';
-
-const pinata = pinataSDK(
-  process.env.PINATA_CLOUD_API_KEY,
-  process.env.PINATA_CLOUD_API_SECRET,
-);
+import { pinata } from 'src/shared/utils/pinata';
 
 @Controller('pinata')
 export class PinataController {

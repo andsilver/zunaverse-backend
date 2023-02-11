@@ -97,7 +97,7 @@ export class User extends PrimaryEntity {
     }
     pubKey = pubKey.toLowerCase();
 
-    let user = await this.findByPubKey(pubKey);
+    let user = await User.findByPubKey(pubKey);
 
     if (user) {
       return user;

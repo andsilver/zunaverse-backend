@@ -10,7 +10,7 @@ import { StreamService } from './stream/stream.service';
 export class CronService implements OnApplicationBootstrap {
   constructor(private indexer: IndexerService, private stream: StreamService) {}
 
-  onApplicationBootstrap() {
+  async onApplicationBootstrap() {
     Logger.log('Application bootstrapped');
   }
 
@@ -28,6 +28,7 @@ export class CronService implements OnApplicationBootstrap {
 
     currencies.map((c) => {
       c.usd = +prices[c.coinId].current_price;
+      c.image = prices[c.coinId].image;
     });
     await Currency.save(currencies);
   }

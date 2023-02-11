@@ -14,6 +14,7 @@ import { uploadNftImageCloudinary } from 'src/shared/utils/cloudinary';
 import { Logger } from '@nestjs/common';
 import Moralis from 'moralis';
 import { addNftAddressToStream, getChainId } from 'src/shared/utils/moralis';
+import { convertIpfsIntoReadable } from 'src/shared/utils/helper';
 
 @Entity('Nfts')
 @Index(['tokenId', 'tokenAddress'])
@@ -150,9 +151,21 @@ export class Nft extends PrimaryEntity {
     }
   }
 
+  fixIpfsUrl() {
+    if (this.image) {
+      return convertIpfsIntoReadable(this.image, this.tokenAddress);
+    } else {
+      return '';
+    }
+  }
+
   async resizeNftImage(save?: boolean) {
     Logger.log(`Processing NFT image: ${this.name}`);
-    const imageUrl = this.image.replace('ipfs://', process.env.PINATA_GATE_WAY);
+    const imageUrl = this.fixIpfsUrl();
+
+    if (!imageUrl) {
+      return;
+    }
     let downloadPath = `${process.env.UPLOAD_FOLDER}/${this.tokenAddress}_${this.tokenId}.png`;
     Logger.log(`Nft image downloading: ${imageUrl}`);
 
@@ -245,6 +258,7 @@ export class Nft extends PrimaryEntity {
       User.findOrCreate(nft.owner.pubKey),
       User.findOrCreate(nft.creator.pubKey),
     ]);
+    await nft.resizeNftImage();
     nft.owner = owner;
     nft.creator = creator;
     nft.ownerId = owner.id;

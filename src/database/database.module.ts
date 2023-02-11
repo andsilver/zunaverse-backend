@@ -9,7 +9,6 @@ import { Favorite } from './entities/Favorite';
 import { Bid } from './entities/Bid';
 import { Ask } from './entities/Ask';
 import { Activity } from './entities/Activity';
-import { EthBlock } from './entities/EthBlock';
 import { Notification } from './entities/Notification';
 import { Transaction } from './entities/Transaction';
 import { Follow } from './entities/Follow';
@@ -46,7 +45,6 @@ import { StreamEvent } from './entities/StreamEvent';
         Bid,
         Ask,
         Activity,
-        EthBlock,
         Notification,
         Transaction,
         Follow,

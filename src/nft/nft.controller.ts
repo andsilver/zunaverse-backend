@@ -419,6 +419,8 @@ export class NftController {
     if (!nft) {
       throw new UnprocessableEntityException('The nft does not exist');
     }
+    nft.owner = await User.findOrCreate(nft.owner.pubKey);
+
     const favorites = await Favorite.count({
       where: {
         tokenId,
@@ -432,8 +434,7 @@ export class NftController {
         }))
       : false;
 
-    nft.image &&
-      (nft.image = nft.image.replace('ipfs://', process.env.PINATA_GATE_WAY));
+    nft.image && (nft.image = nft.fixIpfsUrl());
 
     return nft;
   }
