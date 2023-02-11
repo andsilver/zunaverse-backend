@@ -17,6 +17,7 @@ export class AppController {
     const [featuredUsers, collections] = await Promise.all([
       User.find({
         order: {
+          featured: 'desc',
           id: 'asc',
         },
         take: 20,
