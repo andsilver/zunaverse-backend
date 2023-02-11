@@ -29,7 +29,7 @@ export class AppController {
         where: {
           featured: true,
         },
-        order: { createdAt: 'ASC' },
+        order: { order: 'ASC', createdAt: 'ASC' },
         relations: ['owner'],
         take: 20,
       }),
