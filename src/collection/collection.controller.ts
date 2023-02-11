@@ -112,13 +112,14 @@ export class CollectionController {
       body.banner = secure_url;
     }
 
-    const { name, description, category } = body;
+    const { name, description, category, twitter, website, instagram } = body;
 
     name && (collection.name = name);
     description && (collection.description = description);
     category && (collection.category = category);
-
-    console.log(collection);
+    twitter && (collection.twitter = twitter);
+    website && (collection.website = website);
+    instagram && (collection.instagram = instagram);
 
     await collection.save();
 
