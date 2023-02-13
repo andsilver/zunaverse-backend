@@ -58,10 +58,15 @@ export class BulkMintService implements OnApplicationBootstrap {
           requestId: req.id,
           processed: true,
         });
-        const owner = await media.methods.ownerOf(nft.tokenId).call();
 
-        if (owner !== BURN_ADDRESSES[0]) {
-          req.status = 'minted';
+        try {
+          const owner = await media.methods.ownerOf(nft.tokenId).call();
+
+          if (owner !== BURN_ADDRESSES[0]) {
+            req.status = 'minted';
+          }
+        } catch (err) {
+          throw new BadRequestException('You can mint your nfts now');
         }
       }
 
