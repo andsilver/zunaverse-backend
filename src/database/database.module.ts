@@ -19,7 +19,8 @@ import { RewardDetail } from './entities/RewardDetail';
 import { Currency } from './entities/Currency';
 import { ShortLink } from './entities/ShortLink';
 import { StreamEvent } from './entities/StreamEvent';
-// import { TopSeller } from './views/TopSeller';
+import { TempNft } from './entities/TempNft';
+import { BulkMintRequest } from './entities/BulkMintRequest';
 
 @Module({
   imports: [
@@ -55,6 +56,8 @@ import { StreamEvent } from './entities/StreamEvent';
         Currency,
         ShortLink,
         StreamEvent,
+        TempNft,
+        BulkMintRequest,
       ],
       synchronize: true,
     }),

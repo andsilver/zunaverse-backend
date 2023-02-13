@@ -16,6 +16,10 @@ import {
 import { readFileSync } from 'fs';
 import { FileFieldsInterceptor } from '@nestjs/platform-express';
 import { FindOptionsWhere, ILike } from 'typeorm';
+import { randomUUID } from 'crypto';
+import { Response } from 'express';
+import { join } from 'path';
+
 import { PAGINATION } from 'src/consts';
 import { Collection } from 'src/database/entities/Collection';
 import { User } from 'src/database/entities/User';
@@ -27,9 +31,7 @@ import {
   uploadImageCloudinary,
 } from 'src/shared/utils/cloudinary';
 import { ShortLink } from 'src/database/entities/ShortLink';
-import { randomUUID } from 'crypto';
-import { Response } from 'express';
-import { join } from 'path';
+import { BulkMintRequest } from 'src/database/entities/BulkMintRequest';
 
 @Controller('collection')
 export class CollectionController {
@@ -104,12 +106,12 @@ export class CollectionController {
 
     if (image) {
       const { secure_url } = await uploadImageCloudinary(image[0].path, 200);
-      body.image = secure_url;
+      collection.image = secure_url;
     }
 
     if (banner) {
       const { secure_url } = await uploadBannerImageCloudinary(banner[0].path);
-      body.banner = secure_url;
+      collection.banner = secure_url;
     }
 
     const { name, description, category, twitter, website, instagram } = body;
@@ -180,5 +182,36 @@ export class CollectionController {
     }
 
     return collections;
+  }
+
+  @Post(':id/bulk-mint/request')
+  @UseGuards(AuthGuard)
+  async bulkMintRequest(
+    @Param('id') id: string,
+    @Body() body: any,
+    @CurrentUser() user: User,
+  ) {
+    const collection = await Collection.findOne({
+      where: { id: +id },
+      relations: ['owner'],
+    });
+
+    if (!collection) {
+      throw new UnprocessableEntityException('Collection not found');
+    }
+
+    if (collection.owner.id !== user.id) {
+      throw new ForbiddenException('Only owners can update their collections');
+    }
+
+    const { totalNfts } = body;
+
+    const req = await BulkMintRequest.create({
+      totalNfts,
+      userId: user.id,
+      collectionId: collection.id,
+    }).save();
+
+    return req;
   }
 }

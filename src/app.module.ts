@@ -1,8 +1,9 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { ScheduleModule } from '@nestjs/schedule';
-import { ActivityModule } from './activity/activity.module';
+import { MulterModule } from '@nestjs/platform-express';
 
+import { ActivityModule } from './activity/activity.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
@@ -22,6 +23,7 @@ import { StreamModule } from './stream/stream.module';
 import { UserModule } from './user/user.module';
 import { ShareLinkModule } from './share-link/ShareLink.module';
 import { IndexerModule } from './indexer/indexer.module';
+import { BulkMintModule } from './bulk-mint/bulk-mint.module';
 
 @Module({
   imports: [
@@ -42,6 +44,10 @@ import { IndexerModule } from './indexer/indexer.module';
     StreamModule,
     ShareLinkModule,
     IndexerModule,
+    BulkMintModule,
+    MulterModule.register({
+      dest: process.env.UPLOAD_FOLDER,
+    }),
   ],
   controllers: [AppController],
   providers: [AppService, CronService, FixService, RewardsService],

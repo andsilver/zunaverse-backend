@@ -21,6 +21,9 @@ export class CronService implements OnApplicationBootstrap {
     }
   }
 
+  // @Cron('*/10 * * * * *')
+  // handleBulkMint() {}
+
   @Cron('*/5 * * * *')
   async fetchCoins() {
     const currencies = await Currency.find({});
