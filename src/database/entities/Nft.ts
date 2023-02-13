@@ -1,6 +1,10 @@
 import { BeforeInsert, Column, Entity, Index, ManyToOne } from 'typeorm';
 import sharp from 'sharp';
 import fs from 'fs';
+import { Logger } from '@nestjs/common';
+import Moralis from 'moralis';
+import { DownloadResult } from 'image-downloader';
+
 import { Activity } from './Activity';
 import { Ask } from './Ask';
 import { Bid } from './Bid';
@@ -11,8 +15,6 @@ import { PrimaryEntity } from './primary-entity';
 import { User } from './User';
 import { downloadFile } from 'src/shared/utils/download-file';
 import { uploadNftImageCloudinary } from 'src/shared/utils/cloudinary';
-import { Logger } from '@nestjs/common';
-import Moralis from 'moralis';
 import { addNftAddressToStream, getChainId } from 'src/shared/utils/moralis';
 import { convertIpfsIntoReadable } from 'src/shared/utils/helper';
 
@@ -170,7 +172,13 @@ export class Nft extends PrimaryEntity {
     Logger.log(`Nft image downloading: ${imageUrl}`);
 
     try {
-      const { filename } = await downloadFile(imageUrl, downloadPath);
+      const { filename } = await new Promise<DownloadResult>(
+        async (resolve, reject) => {
+          setTimeout(() => reject('Timeout'), 20000);
+          const res = await downloadFile(imageUrl, downloadPath);
+          resolve(res);
+        },
+      );
       Logger.log(`Nft image downloaded: ${this.name}`);
       const file = fs.statSync(filename);
 
@@ -231,18 +239,26 @@ export class Nft extends PrimaryEntity {
   }
 
   static async getNftFromMoralis(tokenAddress: string, tokenId: string) {
-    const response = await Moralis.EvmApi.nft.getNFTMetadata({
-      address: tokenAddress,
-      chain: getChainId(),
-      tokenId,
-      normalizeMetadata: true,
-    });
+    try {
+      const response = await Moralis.EvmApi.nft.getNFTMetadata({
+        address: tokenAddress,
+        chain: getChainId(),
+        tokenId,
+        normalizeMetadata: true,
+      });
 
-    if (!response) {
+      if (!response) {
+        return null;
+      }
+      const nft = response.toJSON();
+      return Nft.noramlizeMoralisNft(nft);
+    } catch (err) {
+      console.error(
+        `Failed to get moralis nft: ${tokenAddress} - ${tokenId}`,
+        err,
+      );
       return null;
     }
-    const nft = response.toJSON();
-    return Nft.noramlizeMoralisNft(nft);
   }
 
   static async createFromMoralis(

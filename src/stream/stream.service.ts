@@ -93,7 +93,10 @@ export class StreamService {
     const buyerUser = await User.findByPubKey(buyer);
 
     const isBuying =
-      ask && (ask.typedData.signature === signature || !signature);
+      ask &&
+      (ask.typedData.signature === signature ||
+        !signature ||
+        signature === '0x');
 
     const notification = Notification.create({
       user: isBuying ? sellerUser : buyerUser,

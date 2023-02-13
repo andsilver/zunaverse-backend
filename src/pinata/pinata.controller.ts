@@ -33,6 +33,7 @@ export class PinataController {
       const readableStreamForFile = fs.createReadStream(file.path);
       const res = await pinata.pinFileToIPFS(readableStreamForFile);
       result.push(res);
+      fs.unlinkSync(file.path);
     }
     return result;
   }
