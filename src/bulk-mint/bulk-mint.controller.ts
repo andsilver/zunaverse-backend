@@ -50,7 +50,7 @@ export class BulkMintController {
     await this.bulkMintService.processRequest(+id);
   }
 
-  @Post(':id/process/complete')
+  @Post(':id/complete')
   @UseGuards(AuthGuard)
   async completeRequest(
     @Param('id') id: string,
