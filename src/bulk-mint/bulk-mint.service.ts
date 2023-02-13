@@ -108,6 +108,7 @@ export class BulkMintService implements OnApplicationBootstrap {
     for (const tempNft of tempNfts) {
       try {
         const readableStreamForFile = fs.createReadStream(tempNft.filePath);
+        await new Promise((resolve) => setTimeout(resolve, 500));
         const res = await pinata.pinFileToIPFS(readableStreamForFile);
         tempNft.imageIpfsHash = res.IpfsHash;
 
