@@ -214,4 +214,18 @@ export class CollectionController {
 
     return req;
   }
+
+  @Get(':id/bulk-mints')
+  @UseGuards(AuthGuard)
+  async getBulkImports(@Param('id') id: string) {
+    const requests = await BulkMintRequest.find({
+      where: {
+        collectionId: +id,
+      },
+      order: {
+        createdAt: 'DESC',
+      },
+    });
+    return requests;
+  }
 }

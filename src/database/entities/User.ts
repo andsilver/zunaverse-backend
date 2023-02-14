@@ -56,7 +56,7 @@ export class User extends PrimaryEntity {
   pubKey: string;
 
   @Column({ nullable: true })
-  nonce: number;
+  nonce: string;
 
   @OneToMany(() => Collection, (collection) => collection.owner)
   collections: Collection[];

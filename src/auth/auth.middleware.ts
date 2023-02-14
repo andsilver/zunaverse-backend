@@ -5,6 +5,8 @@ import { User } from 'src/database/entities/User';
 
 @Injectable()
 export class AuthMiddleware implements NestMiddleware {
+  logger = new Logger(AuthMiddleware.name);
+
   async use(req: any, _res: Response, next: NextFunction) {
     const { authorization } = req.headers;
 
@@ -21,15 +23,15 @@ export class AuthMiddleware implements NestMiddleware {
         { algorithms: ['HS256'] },
         (err, decoded: jwt.JwtPayload) => {
           if (err) {
-            Logger.error('JWT Verification Error\n');
-            Logger.error(err);
+            this.logger.error('JWT Verification Error\n');
+            this.logger.error(err);
             return next();
           }
-          User.findByPubKey(decoded.payload.pubKey)
+          User.findOneBy({ id: decoded.payload.userId })
             .then((user) => {
               req.user = user;
             })
-            .catch((error) => Logger.error(error))
+            .catch((error) => this.logger.error(error))
             .finally(() => next());
         },
       );

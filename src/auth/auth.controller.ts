@@ -5,15 +5,48 @@ import {
   InternalServerErrorException,
   Post,
   UnauthorizedException,
+  UnprocessableEntityException,
 } from '@nestjs/common';
 import { recoverTypedSignature_v4 } from 'eth-sig-util';
 import Web3 from 'web3';
 import jwt from 'jsonwebtoken';
+import { generateNonce, SiweMessage } from 'siwe';
 
 import { User } from '../database/entities/User';
 
 @Controller('auth')
 export class AuthController {
+  @Post('verify')
+  async verify(@Body() body: any) {
+    const { message, signature, nonce } = body;
+
+    const siweMessage = new SiweMessage(message);
+    const fields = await siweMessage.validate(signature);
+
+    if (nonce !== fields.nonce) {
+      throw new UnprocessableEntityException('Invalid Nonce.');
+    }
+    const user = await User.findOrCreate(fields.address);
+
+    if (nonce !== user.nonce) {
+      throw new UnauthorizedException('Wrong Nonce.');
+    }
+
+    const accessToken = jwt.sign(
+      {
+        payload: {
+          userId: user.id,
+          ...fields,
+        },
+      },
+      process.env.JWT_SECRET,
+      {
+        algorithm: 'HS256',
+      },
+    );
+    return { accessToken, user };
+  }
+
   @Post('nonce')
   async generateNonce(@Body() body: any) {
     const { pubKey } = body;
@@ -23,20 +56,11 @@ export class AuthController {
         message: 'Invalid Public Key',
       });
     }
-
-    const nonce = Math.floor(Math.random() * 10000);
+    const nonce = generateNonce();
 
     try {
-      let user = await User.findByPubKey(pubKey);
-
-      if (!user) {
-        user = User.create({
-          pubKey,
-          nonce,
-        });
-      } else {
-        user.nonce = nonce;
-      }
+      const user = await User.findOrCreate(pubKey);
+      user.nonce = nonce;
       await user.save();
 
       return { nonce };
@@ -103,7 +127,7 @@ export class AuthController {
           message: 'Signature verification failed',
         });
       }
-      user.nonce = Math.floor(Math.random() * 10000);
+      // user.nonce = Math.floor(Math.random() * 10000);
       await user.save();
 
       const accessToken = jwt.sign(

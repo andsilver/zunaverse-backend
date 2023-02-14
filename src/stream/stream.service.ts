@@ -314,6 +314,7 @@ export class StreamService {
 
       if (collection) {
         await collection.calculateMetrics();
+        await nft.updateCollectionProperty();
       }
       this.logger.log(`handleTransfer Success: ${tokenAddress}: ${tokenId}`);
       return;
@@ -349,6 +350,10 @@ export class StreamService {
         createdAt: `${+timestamp * 1000}`,
         ...nft.tokenIdentity,
       });
+
+      if (nft.collectionId) {
+        activity.collectionId = nft.collectionId;
+      }
 
       await Promise.all([
         Bid.delete({ bidder: toUser.pubKey, ...nft.tokenIdentity }),
