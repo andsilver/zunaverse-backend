@@ -94,6 +94,7 @@ export class IndexerService implements OnApplicationBootstrap {
             offer,
             seller.toLowerCase(),
             buyer.toLowerCase(),
+            event.name === 'Bought',
           );
           break;
         case 'RemovePrice':

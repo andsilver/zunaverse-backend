@@ -28,6 +28,48 @@ export class FixService {
     private stream: StreamService,
   ) {}
 
+  async fixTransactions() {
+    const collections = await Collection.find({});
+
+    for (const c of collections) {
+      const transactions = await Transaction.findBy({ collectionId: c.id });
+
+      c.totalVolume = transactions.reduce((a, b) => a + b.usd, 0);
+
+      await c.save();
+    }
+
+    const activities = await Activity.findBy({
+      event: 'Sale',
+      collectionId: IsNull(),
+    });
+
+    for (const a of activities) {
+      const tx = await Transaction.findOneBy({ txHash: a.txHash });
+
+      if (!tx || !tx.collectionId) {
+        continue;
+      }
+      a.collectionId = tx.collectionId;
+      await a.save();
+    }
+
+    const collection = await Collection.findOneBy({ id: 62 });
+
+    if (!collection) {
+      return;
+    }
+
+    const nfts = await Nft.findBy({ collectionId: collection.id });
+
+    for (const n of nfts) {
+      n.collection = collection;
+      n.updateCollectionProperty(false);
+    }
+    await collection.save();
+    await collection.calculateMetrics();
+  }
+
   async addCollectionProperties() {
     await Collection.update(
       {},
@@ -50,7 +92,7 @@ export class FixService {
   }
 
   async fix() {
-    await this.addCoins();
+    await this.fixTransactions();
   }
 
   async fixNftOwners() {

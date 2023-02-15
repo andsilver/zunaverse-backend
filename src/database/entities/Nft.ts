@@ -17,6 +17,7 @@ import { downloadFile } from 'src/shared/utils/download-file';
 import { uploadNftImageCloudinary } from 'src/shared/utils/cloudinary';
 import { addNftAddressToStream, getChainId } from 'src/shared/utils/moralis';
 import { convertIpfsIntoReadable } from 'src/shared/utils/helper';
+import { pinata } from 'src/shared/utils/pinata';
 
 @Entity('Nfts')
 @Index(['tokenId', 'tokenAddress'])
@@ -87,13 +88,16 @@ export class Nft extends PrimaryEntity {
   favorited: boolean;
   favorites: number;
   collection: Collection;
+  currentAsk: Ask;
 
   async burn() {
-    await Bid.delete(this.tokenIdentity);
-    await Activity.delete(this.tokenIdentity);
-    await Ask.delete(this.tokenIdentity);
-    await Favorite.delete(this.tokenIdentity);
-    await Notification.delete(this.tokenIdentity);
+    await Promise.all([
+      Bid.delete(this.tokenIdentity),
+      Activity.delete(this.tokenIdentity),
+      Ask.delete(this.tokenIdentity),
+      Favorite.delete(this.tokenIdentity),
+      Notification.delete(this.tokenIdentity),
+    ]);
 
     if (this.collectionId) {
       const collection = await Collection.findOneBy({
@@ -101,8 +105,18 @@ export class Nft extends PrimaryEntity {
       });
       await collection.calculateMetrics();
       await collection.calculateFloorPrice();
+
+      this.collection = collection;
+      await this.updateCollectionProperty();
     }
     await this.remove();
+
+    if (this.isZunaNft) {
+      await Promise.all([
+        pinata.unpin(this.image.replace('ipfs://', '')),
+        pinata.unpin(this.tokenUri.replace('ipfs://', '')),
+      ]);
+    }
   }
 
   @BeforeInsert()
@@ -128,11 +142,13 @@ export class Nft extends PrimaryEntity {
     };
   }
 
-  async updateCollectionProperty() {
+  async updateCollectionProperty(save = true) {
     if (!this.collectionId) {
       return;
     }
-    const collection = await Collection.findOneBy({ id: this.collectionId });
+    const collection =
+      this.collection ||
+      (await Collection.findOneBy({ id: this.collectionId }));
 
     let collectionUpdated = false;
 
@@ -148,7 +164,7 @@ export class Nft extends PrimaryEntity {
       collectionUpdated = true;
     }
 
-    if (collectionUpdated) {
+    if (save && collectionUpdated) {
       await collection.save();
     }
   }
@@ -284,12 +300,16 @@ export class Nft extends PrimaryEntity {
 
   @BeforeInsert()
   async addTokenAddressToStream() {
-    if (
-      this.tokenAddress.toLowerCase() ===
-      process.env.MEDIA_CONTRACT.toLowerCase()
-    ) {
+    if (this.isZunaNft) {
       return;
     }
     await addNftAddressToStream(this.tokenAddress);
+  }
+
+  get isZunaNft() {
+    return (
+      this.tokenAddress.toLowerCase() ===
+      process.env.MEDIA_CONTRACT.toLowerCase()
+    );
   }
 }

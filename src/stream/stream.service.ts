@@ -32,40 +32,45 @@ export class StreamService {
     offer: any,
     seller: string,
     buyer: string,
+    buying: boolean,
   ) {
     this.logger.log(`handleOffer: ${tokenAddress}: ${tokenId}`);
 
-    const nft = await Nft.findOne({
-      where: {
-        tokenId: `${tokenId}`,
-        tokenAddress: tokenAddress.toLowerCase(),
-      },
-      relations: ['owner'],
-    });
+    tokenAddress = tokenAddress.toLowerCase();
+
+    const [nft, activity] = await Promise.all([
+      Nft.createQueryBuilder('n')
+        .where('n.tokenId = :tokenId AND n.tokenAddress = :tokenAddress', {
+          tokenId,
+          tokenAddress,
+        })
+        .leftJoinAndMapOne('n.owner', User, 'u', 'n.ownerId = u.id')
+        .leftJoinAndMapOne(
+          'n.collection',
+          Collection,
+          'c',
+          'n.collectionId = c.id',
+        )
+        .getOne(),
+      Activity.findOne({
+        where: {
+          txHash,
+          logIndex: logIndex - 1,
+        },
+      }),
+    ]);
 
     if (!nft) {
       throw new UnprocessableEntityException(
         `Nft does not exist for tokenId: ${tokenId}`,
       );
     }
-
-    const activity = await Activity.findOne({
-      where: {
-        txHash,
-        logIndex: logIndex - 1,
-      },
-    });
-
     if (!activity) {
       throw new UnprocessableEntityException(`Transfer activity missing`);
     }
 
-    const ask =
-      nft.currentAskId && (await Ask.findOneBy({ id: nft.currentAskId }));
-
     const erc20Address = offer.erc20Address || offer[offer.length - 4];
     const amount = offer.amount || offer[offer.length - 3];
-    const signature = offer.signature || offer[offer.length - 1];
 
     const currency = await Currency.findOneBy({
       address: erc20Address.toLowerCase(),
@@ -78,7 +83,7 @@ export class StreamService {
 
     const usd = +currency.usd * +activity.amount;
 
-    await Transaction.create({
+    const transaction = await Transaction.create({
       amount: +activity.amount,
       currency: activity.currency,
       txHash: activity.txHash,
@@ -89,23 +94,19 @@ export class StreamService {
       ...nft.tokenIdentity,
     }).save();
 
-    const sellerUser = await User.findByPubKey(seller);
-    const buyerUser = await User.findByPubKey(buyer);
+    const [sellerUser, buyerUser] = await Promise.all([
+      User.findByPubKey(seller),
+      User.findByPubKey(buyer),
+    ]);
 
-    const isBuying =
-      ask &&
-      (ask.typedData.signature === signature ||
-        !signature ||
-        signature === '0x');
-
-    const notification = Notification.create({
-      user: isBuying ? sellerUser : buyerUser,
-      text: isBuying
+    await Notification.create({
+      user: buying ? sellerUser : buyerUser,
+      text: buying
         ? 'One of your nfts has been sold.'
         : 'One of your offers has been accepted.',
       metadata: {
         activityId: activity.id,
-        from: (isBuying ? buyer : seller).toLowerCase(),
+        from: (buying ? buyer : seller).toLowerCase(),
         offer: {
           amount: activity.amount,
           currency: activity.currency,
@@ -113,13 +114,17 @@ export class StreamService {
         txHash,
       },
       ...nft.tokenIdentity,
-    });
-    await notification.save();
+    }).save();
 
     await Bid.delete({
       bidder: (buyer as string).toLowerCase(),
       ...nft.tokenIdentity,
     });
+
+    if (nft.collection) {
+      nft.collection.totalVolume += transaction.usd;
+      await nft.collection.save();
+    }
     this.logger.log(`handleOffer Success: ${tokenAddress}: ${tokenId}`);
   }
 
@@ -310,10 +315,10 @@ export class StreamService {
       });
       await activity.save();
 
-      const collection = await Collection.findOneBy({ id: nft.collectionId });
+      nft.collection = await Collection.findOneBy({ id: nft.collectionId });
 
-      if (collection) {
-        await collection.calculateMetrics();
+      if (nft.collection) {
+        await nft.collection.calculateMetrics();
         await nft.updateCollectionProperty();
       }
       this.logger.log(`handleTransfer Success: ${tokenAddress}: ${tokenId}`);
