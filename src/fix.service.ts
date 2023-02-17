@@ -1,5 +1,6 @@
 import { EvmChain } from '@moralisweb3/common-evm-utils';
 import { Injectable, Logger } from '@nestjs/common';
+import axios from 'axios';
 import { randomUUID } from 'crypto';
 import { readFileSync, writeFileSync } from 'fs';
 import Moralis from 'moralis';
@@ -70,6 +71,28 @@ export class FixService {
     await collection.calculateMetrics();
   }
 
+  async fixNftMetadata() {
+    const nfts = await Nft.findBy({ image: IsNull() });
+
+    for (const nft of nfts) {
+      if (nft.tokenUri) {
+        try {
+          const { data } = await axios.get(nft.tokenUri);
+
+          console.log(nft.id, data);
+
+          const { name, description, image } = data;
+
+          nft.name = name;
+          nft.description = description;
+          nft.image = image;
+
+          await nft.resizeNftImage(true);
+        } catch (err) {}
+      }
+    }
+  }
+
   async addCollectionProperties() {
     await Collection.update(
       {},
@@ -92,7 +115,8 @@ export class FixService {
   }
 
   async fix() {
-    await this.fixTransactions();
+    // await this.fixTransactions();
+    await this.fixNftMetadata();
   }
 
   async fixNftOwners() {
@@ -187,84 +211,6 @@ export class FixService {
     }
   }
 
-  async fixTokenId() {
-    // const nfts = await Nft.find({ relations: ['owner'] });
-
-    // for (const nft of nfts) {
-    //   if (!nft.tokenId.includes('0x')) {
-    //     continue;
-    //   }
-    //   const tokenId = Web3.utils.hexToNumberString(nft.tokenId);
-    //   nft.tokenId = tokenId;
-    //   await nft.save();
-    // }
-    const activities = await Activity.find({});
-
-    for (const n of activities) {
-      if (!n.tokenId || !n.tokenId.includes('0x')) {
-        continue;
-      }
-      const tokenId = Web3.utils.hexToNumberString(n.tokenId);
-      n.tokenId = tokenId;
-      await n.save();
-    }
-
-    const bids = await Bid.find({});
-
-    for (const n of bids) {
-      if (!n.tokenId || !n.tokenId.includes('0x')) {
-        continue;
-      }
-      const tokenId = Web3.utils.hexToNumberString(n.tokenId);
-      n.tokenId = tokenId;
-      await n.save();
-    }
-
-    const asks = await Ask.find({});
-
-    for (const n of asks) {
-      if (!n.tokenId || !n.tokenId.includes('0x')) {
-        continue;
-      }
-      const tokenId = Web3.utils.hexToNumberString(n.tokenId);
-      n.tokenId = tokenId;
-      await n.save();
-    }
-
-    const ffs = await Favorite.find({});
-
-    for (const n of ffs) {
-      if (!n.tokenId || !n.tokenId.includes('0x')) {
-        continue;
-      }
-      const tokenId = Web3.utils.hexToNumberString(n.tokenId);
-      n.tokenId = tokenId;
-      await n.save();
-    }
-
-    const links = await ShortLink.find({});
-
-    for (const n of links) {
-      if (!n.tokenId || !n.tokenId.includes('0x')) {
-        continue;
-      }
-      const tokenId = Web3.utils.hexToNumberString(n.tokenId);
-      n.tokenId = tokenId;
-      await n.save();
-    }
-
-    const ts = await Transaction.find({});
-
-    for (const n of ts) {
-      if (!n.tokenId || !n.tokenId.includes('0x')) {
-        continue;
-      }
-      const tokenId = Web3.utils.hexToNumberString(n.tokenId);
-      n.tokenId = tokenId;
-      await n.save();
-    }
-  }
-
   async collectionShortLinks() {
     await ShortLink.delete({});
     const collections = await Collection.find({});
@@ -280,7 +226,6 @@ export class FixService {
   async burn() {
     let nfts = await Nft.findBy({
       collectionId: 1,
-      txHash: IsNull(),
       minted: false,
       owner: {
         pubKey: '0x2818bfb42c39fe0643265dee392ea7f17221c75e',
@@ -296,8 +241,6 @@ export class FixService {
           182, 201, 231, 236, 229, 272, 273, 297, 306, 386, 394,
         ].includes(n.id),
     );
-
-    console.log(nfts.length, nfts.filter((n) => n.txHash === null).length);
 
     for (const nft of nfts) {
       await Bid.delete(nft.tokenIdentity);
@@ -385,78 +328,5 @@ export class FixService {
       usd: 0,
       decimals: 18,
     }).save();
-  }
-
-  async addNftThumbnail() {
-    const nfts = await Nft.find({
-      where: {
-        thumbnail: IsNull(),
-      },
-    });
-
-    Logger.log(nfts.length);
-
-    const chunkSize = 10;
-    for (let i = 0; i < nfts.length; i += chunkSize) {
-      const chunk = nfts.slice(i, i + chunkSize);
-      // do whatever
-      await Promise.all(
-        chunk.map(async (nft) => {
-          await nft.resizeNftImage();
-        }),
-      );
-      await Nft.save(chunk);
-    }
-
-    Logger.log('Finished NFTs');
-
-    const users = await User.find({
-      where: {
-        thumbnail: IsNull(),
-      },
-    });
-
-    for (const user of users) {
-      const [
-        { secure_url: avatarUrl },
-        { secure_url: thumbnailUrl },
-        { secure_url: bannerUrl },
-      ] = await Promise.all([
-        user.avatar
-          ? this.cloudinary.uploadImageCloudinary(user.avatar, 200)
-          : Promise.resolve({ secure_url: null }),
-        user.avatar
-          ? this.cloudinary.uploadImageCloudinary(user.avatar, 60)
-          : Promise.resolve({ secure_url: null }),
-        user.banner
-          ? this.cloudinary.uploadBannerImageCloudinary(user.banner)
-          : Promise.resolve({ secure_url: null }),
-        ,
-      ]);
-      user.avatar = avatarUrl;
-      user.thumbnail = thumbnailUrl;
-      user.banner = bannerUrl;
-      await user.save();
-    }
-
-    Logger.log('Finished Users');
-
-    const collections = await Collection.find({});
-
-    for (const collection of collections) {
-      const [{ secure_url: imageUrl }, { secure_url: bannerUrl }] =
-        await Promise.all([
-          collection.image
-            ? this.cloudinary.uploadImageCloudinary(collection.image, 200)
-            : Promise.resolve({ secure_url: null }),
-          collection.banner
-            ? this.cloudinary.uploadBannerImageCloudinary(collection.banner)
-            : Promise.resolve({ secure_url: null }),
-          ,
-        ]);
-      collection.image = imageUrl;
-      collection.banner = bannerUrl;
-      await collection.save();
-    }
   }
 }
