@@ -61,7 +61,7 @@ export class Nft extends PrimaryEntity {
   @ManyToOne(() => User)
   creator: User;
 
-  @Column()
+  @Column({ nullable: true })
   creatorId: number;
 
   @Column({ nullable: true })
