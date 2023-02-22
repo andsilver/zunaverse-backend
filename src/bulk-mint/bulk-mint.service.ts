@@ -2,32 +2,22 @@ import {
   BadRequestException,
   Injectable,
   Logger,
-  OnApplicationBootstrap,
   UnprocessableEntityException,
 } from '@nestjs/common';
-import fs from 'fs';
+import { IsNull, Not } from 'typeorm';
+import Web3 from 'web3';
+
 import { BulkMintRequest } from 'src/database/entities/BulkMintRequest';
 import { TempNft } from 'src/database/entities/TempNft';
-import { pinata } from 'src/shared/utils/pinata';
-import Web3 from 'web3';
 import MediaAbi from '../indexer/abis/Zuna.json';
 import MarketAbi from '../indexer/abis/Market.json';
-import { BURN_ADDRESSES } from 'src/consts';
-import { Not } from 'typeorm';
+import { QueueService } from 'src/queue/queue.service';
 
 @Injectable()
-export class BulkMintService implements OnApplicationBootstrap {
-  queue = 0;
-  inProgress = false;
+export class BulkMintService {
   logger = new Logger(BulkMintService.name);
 
-  onApplicationBootstrap() {
-    this.queueRequest();
-  }
-
-  queueRequest() {
-    this.queue += 1;
-  }
+  constructor(private queue: QueueService) {}
 
   async processRequest(id: number) {
     const req = await BulkMintRequest.findOneBy({ id });
@@ -56,15 +46,12 @@ export class BulkMintService implements OnApplicationBootstrap {
       if (req.status === 'success') {
         const nft = await TempNft.findOneBy({
           requestId: req.id,
-          processed: true,
+          tokenUri: Not(IsNull()),
         });
 
         try {
-          const owner = await media.methods.ownerOf(nft.tokenId).call();
-
-          if (owner !== BURN_ADDRESSES[0]) {
-            req.status = 'minted';
-          }
+          await media.methods.ownerOf(nft.tokenId).call();
+          req.status = 'minted';
         } catch (err) {
           throw new BadRequestException('You can mint your nfts now');
         }
@@ -72,7 +59,7 @@ export class BulkMintService implements OnApplicationBootstrap {
 
       const nft = await TempNft.findOneBy({
         requestId: req.id,
-        processed: true,
+        tokenUri: Not(IsNull()),
         amount: Not('0'),
       });
       const price = await market.methods.prices(nft.tokenId).call();
@@ -82,62 +69,15 @@ export class BulkMintService implements OnApplicationBootstrap {
         await req.save();
 
         throw new BadRequestException(
-          'The request has been completed successfully',
+          'The request already has been completed successfully',
         );
       } else {
         await req.save();
-        throw new BadRequestException('Nfts are minted, please set price now');
+        throw new BadRequestException(
+          'Nfts are already minted, please set price now',
+        );
       }
     }
-
-    const tempNfts = await TempNft.find({
-      where: { requestId: req.id, processed: false },
-      order: {
-        id: 'ASC',
-      },
-    });
-
-    if (req.status === 'init' || req.status === 'uploading') {
-      if (tempNfts.length < req.totalNfts) {
-        throw new BadRequestException('Awaiting for nfts uploading to be done');
-      }
-
-      if (tempNfts.length > req.totalNfts) {
-        await req.removeRequest();
-        throw new BadRequestException('Invalid minting request, removed');
-      }
-    }
-    req.status = 'processing';
-    await req.save();
-
-    for (const tempNft of tempNfts) {
-      try {
-        const readableStreamForFile = fs.createReadStream(tempNft.filePath);
-        await new Promise((resolve) => setTimeout(resolve, 500));
-        const res = await pinata.pinFileToIPFS(readableStreamForFile);
-        tempNft.imageIpfsHash = res.IpfsHash;
-
-        const metadata = {
-          name: tempNft.name,
-          description: tempNft.description,
-          category: tempNft.category,
-          image: `ipfs://${res.IpfsHash}`,
-          properties: tempNft.properties,
-        };
-        const metadataRes = await pinata.pinJSONToIPFS(metadata);
-        tempNft.tokenUri = `ipfs://${metadataRes.IpfsHash}`;
-        tempNft.processed = true;
-        await tempNft.save();
-        fs.unlinkSync(tempNft.filePath);
-      } catch (err) {
-        this.logger.error(`Failed at processing: ${tempNft.id}`);
-        console.error(err);
-        req.status = 'failed';
-        await req.save();
-        return;
-      }
-    }
-    req.status = 'success';
-    await req.save();
+    await this.queue.processBulkMint(req.id);
   }
 }

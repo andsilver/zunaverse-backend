@@ -1,9 +1,8 @@
 import { BeforeInsert, Column, Entity, Index, ManyToOne } from 'typeorm';
-import sharp from 'sharp';
 import fs from 'fs';
 import { Logger } from '@nestjs/common';
 import Moralis from 'moralis';
-import { DownloadResult } from 'image-downloader';
+import axios from 'axios';
 
 import { Activity } from './Activity';
 import { Ask } from './Ask';
@@ -18,6 +17,7 @@ import { uploadNftImageCloudinary } from 'src/shared/utils/cloudinary';
 import { addNftAddressToStream, getChainId } from 'src/shared/utils/moralis';
 import { convertIpfsIntoReadable } from 'src/shared/utils/helper';
 import { pinata } from 'src/shared/utils/pinata';
+import { NftCategory } from 'src/shared/types';
 
 @Entity('Nfts')
 @Index(['tokenId', 'tokenAddress'])
@@ -28,8 +28,8 @@ export class Nft extends PrimaryEntity {
   @Column({ default: process.env.MEDIA_CONTRACT.toLowerCase() })
   tokenAddress: string;
 
-  @Column()
-  tokenUri: string;
+  @Column({ nullable: true })
+  tokenUri?: string;
 
   @Column()
   name: string;
@@ -38,7 +38,7 @@ export class Nft extends PrimaryEntity {
   description: string;
 
   @Column({ nullable: true })
-  category: string;
+  category: NftCategory;
 
   @Column({ type: 'json' })
   properties: any[];
@@ -61,6 +61,9 @@ export class Nft extends PrimaryEntity {
   @ManyToOne(() => User)
   creator: User;
 
+  @Column()
+  creatorId: number;
+
   @Column({ nullable: true })
   collectionId: number;
 
@@ -78,9 +81,6 @@ export class Nft extends PrimaryEntity {
 
   @Column({ nullable: true })
   mintedAt: string;
-
-  @Column({ nullable: true })
-  txHash: string;
 
   @Column({ nullable: true, default: 0 })
   rewardsMonths: number;
@@ -184,27 +184,25 @@ export class Nft extends PrimaryEntity {
     if (!imageUrl) {
       return;
     }
-    let downloadPath = `${process.env.UPLOAD_FOLDER}/${this.tokenAddress}_${this.tokenId}.png`;
+    const downloadPath = `${process.env.UPLOAD_FOLDER}/${this.tokenAddress}_${this.tokenId}`;
     Logger.log(`Nft image downloading: ${imageUrl}`);
 
     try {
-      const { filename } = await new Promise<DownloadResult>(
-        async (resolve, reject) => {
-          setTimeout(() => reject('Timeout'), 20000);
-          const res = await downloadFile(imageUrl, downloadPath);
-          resolve(res);
-        },
-      );
+      await new Promise(async (resolve, reject) => {
+        setTimeout(() => reject('Timeout'), 20000);
+        const res = await downloadFile(imageUrl, downloadPath);
+        resolve(res);
+      });
       Logger.log(`Nft image downloaded: ${this.name}`);
-      const file = fs.statSync(filename);
+      // const file = fs.statSync(filename);
 
-      if (file.size > 20971520) {
-        const outputpath = `${process.env.UPLOAD_FOLDER}/${this.tokenAddress}_${this.tokenId}_resized`;
-        await sharp(filename).resize(600, null).toFile(outputpath);
-        fs.unlinkSync(filename);
-        downloadPath = outputpath;
-        Logger.log(`Nft image resized: ${this.name}`);
-      }
+      // if (file.size > 20971520) {
+      //   const outputpath = `${process.env.UPLOAD_FOLDER}/${this.tokenAddress}_${this.tokenId}_resized`;
+      //   await sharp(filename).resize(600, null).toFile(outputpath);
+      //   fs.unlinkSync(filename);
+      //   downloadPath = outputpath;
+      //   Logger.log(`Nft image resized: ${this.name}`);
+      // }
       const { secure_url } = await uploadNftImageCloudinary(downloadPath);
       fs.unlinkSync(downloadPath);
       this.thumbnail = secure_url;
@@ -229,8 +227,7 @@ export class Nft extends PrimaryEntity {
       tokenAddress: nft.token_address.toLowerCase(),
       description: nft.normalized_metadata.description,
       name: nft.normalized_metadata.name || nft.name,
-      image:
-        nft.normalized_metadata.animation_url || nft.normalized_metadata.image,
+      image: nft.normalized_metadata.image,
       thumbnail:
         nft.normalized_metadata.animation_url || nft.normalized_metadata.image,
       minted: true,
@@ -267,6 +264,20 @@ export class Nft extends PrimaryEntity {
         return null;
       }
       const nft = response.toJSON();
+
+      let metadata = nft.normalized_metadata;
+
+      if (!metadata || !metadata.name) {
+        if (nft.token_uri) {
+          try {
+            metadata = (await axios.get(nft.token_uri)).data;
+            nft.normalized_metadata = metadata;
+          } catch (err) {
+            Logger.error(`Token URI Error: ${tokenAddress}: ${tokenId}`);
+          }
+        }
+      }
+
       return Nft.noramlizeMoralisNft(nft);
     } catch (err) {
       console.error(

@@ -19,6 +19,7 @@ import { Notification } from 'src/database/entities/Notification';
 import { Bid } from 'src/database/entities/Bid';
 import { ACTIVITY_EVENTS, BURN_ADDRESSES } from 'src/consts';
 import { Collection } from 'src/database/entities/Collection';
+import { TempNft } from 'src/database/entities/TempNft';
 
 @Injectable()
 export class StreamService {
@@ -249,7 +250,7 @@ export class StreamService {
   ) {
     this.logger.log(`handleTransfer: ${tokenAddress}: ${tokenId}`);
 
-    const nft = await Nft.findOneBy({ tokenId, tokenAddress });
+    let nft = await Nft.findOneBy({ tokenId, tokenAddress });
     const isZunaNFT =
       tokenAddress.toLowerCase() === process.env.MEDIA_CONTRACT.toLowerCase();
 
@@ -257,52 +258,48 @@ export class StreamService {
       if (!isZunaNFT || BURN_ADDRESSES.includes(to)) {
         return;
       }
-      const web3 = new Web3(
-        new Web3.providers.HttpProvider(process.env.HTTPS_RPC_URL),
-      );
-      const contract = new web3.eth.Contract(
-        MediaAbi as any,
-        process.env.MEDIA_CONTRACT,
-      );
+      const tempNft = await TempNft.findOneBy({ tokenId });
 
-      const [tokenUri, collectionId, tokenInfo] = await Promise.all([
-        contract.methods.tokenURI(tokenId).call(),
-        contract.methods.collectionIds(tokenId).call(),
-        contract.methods.getTokenInfo(tokenId).call(),
-      ]);
-      const royalties = tokenInfo[1];
+      if (tempNft) {
+        nft = await tempNft.saveAsNft(true);
+      } else {
+        const web3 = new Web3(
+          new Web3.providers.HttpProvider(process.env.HTTPS_RPC_URL),
+        );
+        const contract = new web3.eth.Contract(MediaAbi as any, tokenAddress);
 
-      if (!tokenUri) {
-        this.logger.error(`None existing NFT`);
-        throw new UnprocessableEntityException('Nft doesnt exist');
+        const [tokenUri, collectionId, tokenInfo] = await Promise.all([
+          contract.methods.tokenURI(tokenId).call(),
+          contract.methods.collectionIds(tokenId).call(),
+          contract.methods.getTokenInfo(tokenId).call(),
+        ]);
+        const royalties = tokenInfo[1];
+        const url = tokenUri.replace('ipfs://', process.env.PINATA_GATE_WAY);
+        const { data: metadata } = await axios.get(url);
+        const { name, description, category, image, properties } = metadata;
+
+        const owner = await User.findOrCreate(to);
+
+        nft = Nft.create({
+          name,
+          description,
+          category,
+          image,
+          properties,
+          tokenUri,
+          minted: true,
+          owner,
+          creator: owner,
+          onSale: true,
+          tokenId,
+          tokenAddress,
+          collectionId: +collectionId,
+          royaltyFee: +royalties,
+          mintedAt: `${+timestamp * 1000}`,
+        });
+        await nft.resizeNftImage();
+        await nft.save();
       }
-      const url = tokenUri.replace('ipfs://', process.env.PINATA_GATE_WAY);
-      const { data: metadata } = await axios.get(url);
-
-      const { name, description, category, image, properties } = metadata;
-
-      const owner = await User.findOrCreate(to);
-
-      const nft = Nft.create({
-        name,
-        description,
-        category,
-        image,
-        properties,
-        tokenUri,
-        minted: true,
-        owner,
-        creator: owner,
-        onSale: true,
-        tokenId,
-        tokenAddress,
-        collectionId: +collectionId,
-        royaltyFee: +royalties,
-        txHash: transactionHash,
-        mintedAt: `${+timestamp * 1000}`,
-      });
-      await nft.resizeNftImage();
-      await nft.save();
 
       const activity = Activity.create({
         txHash: transactionHash,
@@ -338,7 +335,6 @@ export class StreamService {
 
     if (!nft.minted) {
       nft.minted = true;
-      nft.txHash = transactionHash;
     }
     nft.owner = toUser;
     nft.currentAskId = null;

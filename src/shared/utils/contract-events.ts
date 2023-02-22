@@ -106,3 +106,5 @@ export class ContractEvents {
     });
   }
 }
+
+export const eventManager = new ContractEvents();

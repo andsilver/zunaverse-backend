@@ -1,4 +1,13 @@
-import { IsNumberString, IsString, IsNotEmpty } from 'class-validator';
+import {
+  IsNumberString,
+  IsString,
+  IsNotEmpty,
+  IsEnum,
+  IsArray,
+  IsNotEmptyObject,
+} from 'class-validator';
+import { NftCategory } from 'src/shared/types';
+import { Block, Log } from '@moralisweb3/streams-typings';
 
 export class UploadNftDto {
   @IsString()
@@ -9,9 +18,9 @@ export class UploadNftDto {
   @IsNotEmpty()
   description: string;
 
-  @IsString()
+  @IsEnum(NftCategory)
   @IsNotEmpty()
-  category: string;
+  category: NftCategory;
 
   @IsString()
   @IsNotEmpty()
@@ -31,4 +40,12 @@ export class UploadNftDto {
 
   @IsString()
   tokenId: string;
+}
+
+export class IndexDto {
+  @IsArray()
+  logs: Log[];
+
+  @IsNotEmptyObject()
+  block: Block;
 }

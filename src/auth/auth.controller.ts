@@ -26,11 +26,15 @@ export class AuthController {
     if (nonce !== fields.nonce) {
       throw new UnprocessableEntityException('Invalid Nonce.');
     }
-    const user = await User.findOrCreate(fields.address);
+    const user = await User.findOne({
+      where: { pubKey: fields.address.toLowerCase() },
+      select: ['id', 'nonce'],
+    });
 
     if (nonce !== user.nonce) {
       throw new UnauthorizedException('Wrong Nonce.');
     }
+    await user.reload();
 
     const accessToken = jwt.sign(
       {

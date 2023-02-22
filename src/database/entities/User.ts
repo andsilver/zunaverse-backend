@@ -55,7 +55,7 @@ export class User extends PrimaryEntity {
   @Index()
   pubKey: string;
 
-  @Column({ nullable: true })
+  @Column({ nullable: true, select: false })
   nonce: string;
 
   @OneToMany(() => Collection, (collection) => collection.owner)

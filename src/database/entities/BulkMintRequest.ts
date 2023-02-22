@@ -35,6 +35,12 @@ export class BulkMintRequest extends BaseEntity {
   @CreateDateColumn()
   createdAt: Date;
 
+  @Column({ default: 0 })
+  progress: number;
+
+  @Column({ nullable: true })
+  errorMessage: string;
+
   uploadedNfts: number;
   processedNfts: number;
 

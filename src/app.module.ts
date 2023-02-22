@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { ScheduleModule } from '@nestjs/schedule';
 import { MulterModule } from '@nestjs/platform-express';
+import { BullModule } from '@nestjs/bull';
 
 import { ActivityModule } from './activity/activity.module';
 import { AppController } from './app.controller';
@@ -24,6 +25,7 @@ import { UserModule } from './user/user.module';
 import { ShareLinkModule } from './share-link/ShareLink.module';
 import { IndexerModule } from './indexer/indexer.module';
 import { BulkMintModule } from './bulk-mint/bulk-mint.module';
+import { QueueModule } from './queue/queue.module';
 
 @Module({
   imports: [
@@ -48,6 +50,13 @@ import { BulkMintModule } from './bulk-mint/bulk-mint.module';
     MulterModule.register({
       dest: process.env.UPLOAD_FOLDER,
     }),
+    BullModule.forRoot({
+      redis: {
+        host: 'localhost',
+        port: 6379,
+      },
+    }),
+    QueueModule,
   ],
   controllers: [AppController],
   providers: [AppService, CronService, FixService, RewardsService],

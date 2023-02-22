@@ -9,8 +9,11 @@ import {
   Post,
   Query,
   UnprocessableEntityException,
+  UploadedFile,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 
 import { ACTIVITY_EVENTS, PAGINATION } from 'src/consts';
 import { Activity } from 'src/database/entities/Activity';
@@ -25,65 +28,89 @@ import { Currency } from 'src/database/entities/Currency';
 import { CurrentUser } from 'src/shared/decorators/current-user.decorator';
 import { AuthGuard } from 'src/shared/guards/auth.guard';
 import { ShortLink } from 'src/database/entities/ShortLink';
+import { CreateNftDto, CreateTempNftDto } from './nft.dto';
+import { TempNft } from 'src/database/entities/TempNft';
 
 @Controller('nft')
 export class NftController {
-  @Post()
+  @Post('temp')
   @UseGuards(AuthGuard)
-  async createNFT(@CurrentUser() user: User, @Body() body: any) {
+  @UseInterceptors(FileInterceptor('file'))
+  async createTempNft(
+    @CurrentUser() user: User,
+    @Body() body: CreateTempNftDto,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
     const {
       name,
-      image,
       description,
       category,
       royaltyFee,
-      signature,
       collectionId,
       tokenId,
-      properties,
-      tokenUri,
       onSale,
+      properties,
     } = body;
+
+    if (collectionId) {
+      const collection = await Collection.findOneBy({ id: +collectionId });
+
+      if (!collection) {
+        throw new BadRequestException('Invalid collection Id');
+      }
+    }
+
+    const tempNft = await TempNft.createTempNft(
+      tokenId,
+      name,
+      description,
+      category,
+      JSON.parse(properties),
+      +royaltyFee,
+      file.path,
+      user.id,
+      null,
+      null,
+      null,
+      +collectionId || null,
+      null,
+      onSale === 'true',
+    );
+
+    if (!tempNft.tokenUri) {
+      await tempNft.pin();
+    }
+    return { tokenId, tokenUri: tempNft.tokenUri, id: tempNft.id };
+  }
+
+  @Post()
+  @UseGuards(AuthGuard)
+  async createNFT(@CurrentUser() user: User, @Body() body: CreateNftDto) {
+    const { signature, tokenId, tempNftId } = body;
 
     if (!signature) {
       throw new BadRequestException('Need to sign voucher');
     }
+    const tempNft = await TempNft.findOneBy({
+      tokenId,
+      id: tempNftId,
+    });
 
-    let collection: Collection;
-
-    if (collectionId) {
-      collection = await Collection.findOneBy({ id: collectionId });
-
-      if (!collection) {
-        throw new BadRequestException('Invalid collection');
-      }
+    if (!tempNft) {
+      throw new UnprocessableEntityException('Temp NFT does not exist');
     }
 
-    const nft = Nft.create({
-      name,
-      image,
-      description,
-      category,
-      royaltyFee,
-      signature,
-      collectionId: collectionId || null,
-      tokenId,
-      tokenAddress: process.env.MEDIA_CONTRACT.toLowerCase(),
-      properties,
-      tokenUri,
-      minted: false,
-      owner: user,
-      creator: user,
-      onSale,
-    });
-    await nft.resizeNftImage();
-    await nft.save();
+    if (tempNft.userId !== user.id) {
+      throw new BadRequestException('Only owner can mint');
+    }
+    tempNft.signature = signature;
+    const nft = await tempNft.saveAsNft(false, true);
 
-    if (collectionId) {
+    if (nft.collectionId) {
+      const collection = await Collection.findOneBy({ id: nft.collectionId });
       await collection.calculateMetrics();
       await nft.updateCollectionProperty();
     }
-
     const acitivity = Activity.create({
       userAddress: user.pubKey,
       event: ACTIVITY_EVENTS.MINT,
