@@ -20,7 +20,7 @@ export class ContractEvents {
       name: 'OfferAccepted',
       contract: ContractType.Market,
       topic:
-        '0xee101220bc97ee214fc4e7643a015f27f7362e7d3bfa1ce8ec911c9ce7ae8ee6',
+        '0xfd65d36ef51c53fb4f44447dc4bb1054ba6815e91b646590ca9fab0375327991',
       address: process.env.MARKET_CONTRACT,
     },
     {
@@ -47,7 +47,8 @@ export class ContractEvents {
     {
       name: 'OfferAccepted',
       contract: ContractType.Market2,
-      topic: '',
+      topic:
+        '0xfd65d36ef51c53fb4f44447dc4bb1054ba6815e91b646590ca9fab0375327991',
       address: process.env.MARKET2_CONTRACT,
     },
     {
