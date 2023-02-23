@@ -103,15 +103,20 @@ export class ContractEvents {
     );
     return logs
       .map((log) => {
-        const topics = [log.topic1, log.topic2, log.topic3];
-        const event = this.EVENTS.find((e) => e.topic === log.topic0);
+        const topics = [log.topic1, log.topic2, log.topic3].filter(Boolean);
+        const event = this.EVENTS.find(
+          (e) =>
+            e.topic === log.topic0 &&
+            (e.address
+              ? e.address.toLowerCase() === log.address.toLowerCase()
+              : true),
+        );
 
         if (!event) {
           throw new Error('Invalid Contract Event');
         }
         const { abi, ...eventData } = event;
         const decoded = web3.eth.abi.decodeLog(abi.inputs, log.data, topics);
-        console.log(decoded);
 
         return {
           log,
