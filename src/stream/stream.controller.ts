@@ -1,10 +1,10 @@
-import { Body, Controller, Logger, Post } from '@nestjs/common';
+import { Body, Controller, Logger, Post, UseGuards } from '@nestjs/common';
 import { IWebhook } from '@moralisweb3/streams-typings';
 
 import { eventManager } from '../shared/utils/contract-events';
-import { ContractType } from 'src/shared/types';
 import { IndexerService } from 'src/indexer/indexer.service';
-import { StreamEvent } from 'src/database/entities/StreamEvent';
+import { AuthGuard } from 'src/shared/guards/auth.guard';
+import { IndexDto } from 'src/bulk-mint/bulk-mint.dto';
 
 @Controller('stream')
 export class StreamController {
@@ -18,21 +18,14 @@ export class StreamController {
       return;
     }
     this.logger.log(`Stream Market:`);
+    console.log(body);
 
-    const existing = await StreamEvent.findOneBy({
-      blockNumber: +body.block.number,
-      txHash: body.logs[0].transactionHash,
-      logIndex: +body.logs[0].logIndex,
-    });
-
-    if (existing) {
-      this.logger.log('Event existing, returning earlier');
-      return;
+    if (await eventManager.saveLogs(body.block, body.logs)) {
+      this.logger.log(`Stream Market Success: ${body.streamId}`);
+      this.indexer.queueIndex();
+    } else {
+      this.logger.log('Already existing');
     }
-
-    await eventManager.saveLogs(body.block, body.logs, ContractType.Market);
-    this.logger.log(`Stream Market Success: ${body.streamId}`);
-    this.indexer.queueIndex();
   }
 
   @Post('market2')
@@ -43,10 +36,12 @@ export class StreamController {
     this.logger.log(`Stream Market:`);
     console.log(body);
 
-    await eventManager.saveLogs(body.block, body.logs, ContractType.Market);
-
-    this.logger.log(`Stream Market 2 Success: ${body.streamId}`);
-    this.indexer.queueIndex();
+    if (await eventManager.saveLogs(body.block, body.logs)) {
+      this.logger.log(`Stream Market 2 Success: ${body.streamId}`);
+      this.indexer.queueIndex();
+    } else {
+      this.logger.log('Already existing');
+    }
   }
 
   @Post('nfts')
@@ -57,18 +52,27 @@ export class StreamController {
     this.logger.log(`Stream NFTs:`);
     console.log(body);
 
-    const existing = await StreamEvent.findOneBy({
-      blockNumber: +body.block.number,
-      txHash: body.logs[0].transactionHash,
-      logIndex: +body.logs[0].logIndex,
-    });
-
-    if (existing) {
-      this.logger.log('Event existing, returning earlier');
-      return;
+    if (await eventManager.saveLogs(body.block, body.logs)) {
+      this.logger.log(`Stream NFTs success: ${body.streamId}`);
+      this.indexer.queueIndex();
+    } else {
+      this.logger.log('Already existing');
     }
-    await eventManager.saveLogs(body.block, body.logs, ContractType.ERC721);
-    this.logger.log(`Stream NFTs success: ${body.streamId}`);
-    this.indexer.queueIndex();
+  }
+
+  @Post('add')
+  @UseGuards(AuthGuard)
+  async addStreamEvent(@Body() body: IndexDto) {
+    const { block, logs } = body;
+
+    this.logger.log('Adding stream:');
+    console.log(body);
+
+    if (await eventManager.saveLogs(block, logs)) {
+      this.logger.log('Added stream.');
+      this.indexer.queueIndex();
+    } else {
+      this.logger.log('Already existing');
+    }
   }
 }

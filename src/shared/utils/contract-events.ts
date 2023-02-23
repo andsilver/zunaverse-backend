@@ -70,13 +70,21 @@ export class ContractEvents {
     }
   }
 
-  async saveLogs(block: Block, logs: Log[], contractType: ContractType) {
+  async saveLogs(block: Block, logs: Log[]) {
+    const existing = await StreamEvent.findOneBy({
+      blockNumber: +block.number,
+      txHash: logs[logs.length - 1].transactionHash,
+      logIndex: +logs[logs.length - 1].logIndex,
+    });
+
+    if (existing) {
+      return null;
+    }
     const events = this.decodeLogs(logs);
     const streamEvents = events.map((e) =>
       StreamEvent.create({
         logIndex: +e.log.logIndex,
         blockNumber: +block.number,
-        contractType,
         address: e.log.address,
         data: e.decoded,
         event: e.event,
@@ -85,25 +93,32 @@ export class ContractEvents {
         txHash: e.log.transactionHash,
       }),
     );
-    await StreamEvent.save(streamEvents);
+    return await StreamEvent.save(streamEvents);
   }
 
   decodeLogs(logs: Log[]) {
     const web3 = new Web3(
       new Web3.providers.HttpProvider(process.env.HTTPS_RPC_URL),
     );
-    return logs.map((log) => {
-      const topics = [log.topic1, log.topic2, log.topic3];
-      const event = this.EVENTS.find((e) => e.topic === log.topic0);
-      const { abi, ...eventData } = event;
-      const decoded = web3.eth.abi.decodeLog(abi.inputs, log.data, topics);
+    return logs
+      .map((log) => {
+        const topics = [log.topic1, log.topic2, log.topic3];
+        const event = this.EVENTS.find((e) => e.topic === log.topic0);
 
-      return {
-        log,
-        decoded,
-        event: eventData,
-      };
-    });
+        if (!event) {
+          throw new Error('Invalid Contract Event');
+        }
+        const { abi, ...eventData } = event;
+        const decoded = web3.eth.abi.decodeLog(abi.inputs, log.data, topics);
+        console.log(decoded);
+
+        return {
+          log,
+          decoded,
+          event: eventData,
+        };
+      })
+      .filter(Boolean);
   }
 }
 

@@ -22,7 +22,6 @@ import { User } from 'src/database/entities/User';
 import { IndexerService } from 'src/indexer/indexer.service';
 import { CurrentUser } from 'src/shared/decorators/current-user.decorator';
 import { AuthGuard } from 'src/shared/guards/auth.guard';
-import { ContractType } from 'src/shared/types';
 import { eventManager } from 'src/shared/utils/contract-events';
 import { IndexDto, UploadNftDto } from './bulk-mint.dto';
 import { BulkMintService } from './bulk-mint.service';
@@ -82,7 +81,7 @@ export class BulkMintController {
     if (existing) {
       throw new ConflictException('Logs are already existing');
     }
-    await eventManager.saveLogs(block, logs, ContractType.ERC721);
+    await eventManager.saveLogs(block, logs);
     this.indexer.queueIndex();
 
     req.status = 'minted';
@@ -115,7 +114,7 @@ export class BulkMintController {
     if (existing) {
       throw new ConflictException('Logs are already existing');
     }
-    await eventManager.saveLogs(block, logs, ContractType.Market);
+    await eventManager.saveLogs(block, logs);
     this.indexer.queueIndex();
 
     req.status = 'completed';
