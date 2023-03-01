@@ -1,9 +1,11 @@
-import { Controller, Get, Query } from '@nestjs/common';
-import { In, IsNull, Not } from 'typeorm';
+import { BadRequestException, Controller, Get, Query } from '@nestjs/common';
+import { ILike, In, IsNull, Not } from 'typeorm';
+import Web3 from 'web3';
 import { Collection } from './database/entities/Collection';
 import { Currency } from './database/entities/Currency';
 import { Transaction } from './database/entities/Transaction';
 import { User } from './database/entities/User';
+import { SearchView } from './database/views/Search';
 
 @Controller()
 export class AppController {
@@ -102,5 +104,43 @@ export class AppController {
   @Get('currencies')
   async getCurrencies() {
     return await Currency.find({});
+  }
+
+  @Get('search')
+  async search(@Query() query: any) {
+    const { text } = query;
+
+    if (!text || text.length < 2) {
+      throw new BadRequestException('At least needs 2 characters');
+    }
+    if (Web3.utils.isAddress(text)) {
+      return await SearchView.find({
+        where: {
+          address: text.toLowerCase(),
+        },
+        take: 6,
+      });
+    }
+
+    const items = await Promise.all(
+      ['nft', 'user', 'collection'].map((category) =>
+        SearchView.find({
+          where: [
+            {
+              name: ILike(`%${text}%`),
+              category,
+            },
+            {
+              description: ILike(`%${text}%`),
+              category,
+            },
+          ],
+          take: 6,
+        }),
+      ),
+    );
+    console.log(items);
+
+    return items.reduce((result, entities) => [...result, ...entities], []);
   }
 }

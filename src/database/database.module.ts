@@ -21,6 +21,7 @@ import { ShortLink } from './entities/ShortLink';
 import { StreamEvent } from './entities/StreamEvent';
 import { TempNft } from './entities/TempNft';
 import { BulkMintRequest } from './entities/BulkMintRequest';
+import { SearchView } from './views/Search';
 
 @Module({
   imports: [
@@ -58,6 +59,7 @@ import { BulkMintRequest } from './entities/BulkMintRequest';
         StreamEvent,
         TempNft,
         BulkMintRequest,
+        SearchView,
       ],
       synchronize: true,
     }),

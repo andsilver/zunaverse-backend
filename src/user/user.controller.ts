@@ -245,14 +245,20 @@ export class UserController {
     address = address.toLowerCase();
 
     const bids = await Bid.createQueryBuilder('Bids')
-      .leftJoinAndMapOne(
+      .innerJoinAndMapOne(
         'Bids.nft',
         Nft,
         'Nfts',
         'Bids.tokenId = Nfts.tokenId AND Bids.tokenAddress = Nfts.tokenAddress',
       )
-      .leftJoinAndMapOne('Nfts.owner', User, 'Users', 'Users.id = Nfts.owner')
-      .where('Users.pubKey = :address', { address })
+      .innerJoin(User, 'owner', 'owner.id = Nfts.ownerId')
+      .innerJoinAndMapOne(
+        'Bids.bidder',
+        User,
+        'Users',
+        'Users.pubKey = Bids.bidder',
+      )
+      .where('owner.pubKey = :address', { address })
       .orderBy('Bids.createdAt', 'DESC')
       .offset(+offset || 0)
       .take(PAGINATION)
@@ -367,8 +373,6 @@ export class UserController {
         rewardType: query.rewardType,
       });
     }
-
-    console.log(new Date(query.startDate));
 
     if (query.startDate || query.endDate) {
       qb = qb.andWhere('rd.createdAt BETWEEN :startDate AND :endDate', {
