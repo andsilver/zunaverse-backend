@@ -139,8 +139,6 @@ export class AppController {
         }),
       ),
     );
-    console.log(items);
-
     return items.reduce((result, entities) => [...result, ...entities], []);
   }
 }
