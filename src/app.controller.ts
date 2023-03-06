@@ -1,4 +1,10 @@
-import { BadRequestException, Controller, Get, Query } from '@nestjs/common';
+import {
+  BadRequestException,
+  Controller,
+  Get,
+  Query,
+  UnprocessableEntityException,
+} from '@nestjs/common';
 import { ILike, In, IsNull, Not } from 'typeorm';
 import Web3 from 'web3';
 import { Collection } from './database/entities/Collection';
@@ -50,12 +56,15 @@ export class AppController {
   @Get('top-sellers')
   async getTopSellers(@Query() query: any) {
     const { currency } = query;
-    const currencies = {
-      WBNB: process.env.WBNB_ADDRESS,
-      ZUNA: process.env.ZUNA_ADDRESS,
-    };
+    const c = await Currency.findOneBy({
+      symbol: currency,
+    });
+
+    if (!c) {
+      throw new UnprocessableEntityException('Currency does not exist');
+    }
     const sellers = await Transaction.createQueryBuilder('t')
-      .where('currency = :currency', { currency: currencies[currency] })
+      .where('currency = :currency', { currency: c.address })
       .select('SUM(amount) as amount, SUM(usd) as usd, seller')
       .groupBy('seller')
       .orderBy('amount', 'DESC')
@@ -77,12 +86,16 @@ export class AppController {
   @Get('top-buyers')
   async getTopBuyers(@Query() query: any) {
     const { currency } = query;
-    const currencies = {
-      WBNB: process.env.WBNB_ADDRESS,
-      ZUNA: process.env.ZUNA_ADDRESS,
-    };
+
+    const c = await Currency.findOneBy({
+      symbol: currency,
+    });
+
+    if (!c) {
+      throw new UnprocessableEntityException('Currency does not exist');
+    }
     const buyers = await Transaction.createQueryBuilder('t')
-      .where('currency = :currency', { currency: currencies[currency] })
+      .where('currency = :currency', { currency: c.address })
       .select('SUM(amount) as amount, SUM(usd) as usd, buyer')
       .groupBy('buyer')
       .orderBy('amount', 'DESC')
