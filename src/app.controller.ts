@@ -91,7 +91,6 @@ export class AppController {
           'following',
         )
         .orderBy('u.featured', 'DESC')
-        .orderBy('u.id', 'ASC')
         .limit(20)
         .getRawAndEntities(),
       Collection.find({
