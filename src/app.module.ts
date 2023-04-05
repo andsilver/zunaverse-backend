@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { ScheduleModule } from '@nestjs/schedule';
 import { MulterModule } from '@nestjs/platform-express';
@@ -26,6 +26,7 @@ import { ShareLinkModule } from './share-link/ShareLink.module';
 import { IndexerModule } from './indexer/indexer.module';
 import { BulkMintModule } from './bulk-mint/bulk-mint.module';
 import { QueueModule } from './queue/queue.module';
+import { AuthMiddleware } from './auth/auth.middleware';
 
 @Module({
   imports: [
@@ -61,4 +62,8 @@ import { QueueModule } from './queue/queue.module';
   controllers: [AppController],
   providers: [AppService, CronService, FixService, RewardsService],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer.apply(AuthMiddleware).forRoutes(AppController);
+  }
+}

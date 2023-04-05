@@ -15,7 +15,7 @@ import {
 } from '@nestjs/common';
 import { readFileSync } from 'fs';
 import { FileFieldsInterceptor } from '@nestjs/platform-express';
-import { FindOptionsWhere, ILike } from 'typeorm';
+import { In } from 'typeorm';
 import { randomUUID } from 'crypto';
 import { Response } from 'express';
 import { join } from 'path';
@@ -32,6 +32,10 @@ import {
 } from 'src/shared/utils/cloudinary';
 import { ShortLink } from 'src/database/entities/ShortLink';
 import { BulkMintRequest } from 'src/database/entities/BulkMintRequest';
+import { FavCollection } from 'src/database/entities/FavCollection';
+import { buildPagination } from 'src/shared/utils/helper';
+import { CollectionCurrencyView } from 'src/database/views/CollectionCurrency';
+import { Currency } from 'src/database/entities/Currency';
 
 @Controller('collection')
 export class CollectionController {
@@ -135,53 +139,112 @@ export class CollectionController {
   }
 
   @Get(':id')
-  async getCollection(@Param('id') id: number) {
-    const collection = await Collection.findOne({
-      where: { id },
-      relations: ['owner'],
-    });
-    const shortLink = await ShortLink.findOneBy({
-      collectionId: collection.id,
-    });
+  async getCollection(@Param('id') id: number, @CurrentUser() user: User) {
+    const collectionId = +id;
+
+    const [collection, shortLink, favorites, favorited] = await Promise.all([
+      Collection.findOne({
+        where: { id: collectionId },
+        relations: ['owner'],
+      }),
+      ShortLink.findOneBy({
+        collectionId,
+      }),
+      FavCollection.countBy({
+        collectionId,
+      }),
+      user
+        ? FavCollection.findOneBy({ collectionId, userAddress: user.pubKey })
+        : Promise.resolve(null),
+    ]);
     collection.shortLink = shortLink;
+    collection.favorites = favorites;
+    collection.favorited = !!favorited;
     return collection;
+  }
+
+  @Post(':id/favorite')
+  @UseGuards(AuthGuard)
+  async favoriteCollection(@CurrentUser() user: User, @Param('id') id: string) {
+    const fav = await FavCollection.findOneBy({
+      collectionId: +id,
+      userAddress: user.pubKey,
+    });
+
+    if (fav) {
+      await fav.remove();
+    } else {
+      await FavCollection.create({
+        collectionId: +id,
+        userAddress: user.pubKey,
+      }).save();
+    }
+    return { success: true };
   }
 
   @Get('')
   async getCollections(@Query() query: any) {
-    const { offset, owner, orderBy, order, category, search } = query;
+    const { page, owner, orderBy, category, search, currency, order } = query;
 
-    const where: FindOptionsWhere<Collection> = {};
+    const qb = Collection.createQueryBuilder('c').innerJoinAndMapOne(
+      'c.owner',
+      User,
+      'u',
+      'u.id = c.ownerId',
+    );
 
     if (owner) {
-      where.owner = {
-        pubKey: ILike(owner),
-      };
+      qb.where('u.pubKey = :pubKey', {
+        pubKey: owner.toLowerCase(),
+      });
     }
 
     if (category) {
-      where.category = category;
+      qb.andWhere('c.category IN (:...category)', {
+        category: category.split(','),
+      });
     }
 
     if (search) {
-      where.name = ILike(`%${search}%`);
+      qb.andWhere('c.name ILIKE :search', { search: `%${search}%` });
     }
 
-    const collections = await Collection.find({
-      where,
-      take: PAGINATION,
-      skip: +offset || 0,
-      relations: ['owner'],
-      order: {
-        [orderBy || 'createdAt']: order || 'ASC',
-      },
-    });
-
-    for (const collection of collections) {
-      await collection.loadPostImages();
+    if (currency) {
+      const currencies = await Currency.findBy({
+        symbol: In(currency.split(',')),
+      });
+      qb.innerJoin(CollectionCurrencyView, 'cc', 'cc.id = c.id').andWhere(
+        `cc.currency && '{${currencies
+          .map((c) => c.address)
+          .join(',')}}' = true`,
+      );
     }
+    const currentPage = +(page || 1);
+    const total = await qb.getCount();
 
-    return collections;
+    if (orderBy === 'popular') {
+      qb.addSelect(
+        (sub) =>
+          sub
+            .select('COUNT(f.id)', 'popular')
+            .from(FavCollection, 'f')
+            .where('c.id = f.collectionId'),
+        'popular',
+      ).orderBy('popular', 'DESC');
+    } else if (orderBy === 'volume') {
+      qb.orderBy('c.totalVolume', 'DESC');
+    } else if (orderBy === 'createdAt') {
+      qb.orderBy('c.createdAt', order || 'DESC');
+    }
+    const data = await qb
+      .take(PAGINATION)
+      .skip((currentPage - 1) * PAGINATION)
+      .getMany();
+
+    return {
+      data,
+      pagination: buildPagination(total, currentPage),
+    };
   }
 
   @Post(':id/bulk-mint/request')

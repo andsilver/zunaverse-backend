@@ -83,6 +83,10 @@ export class User extends PrimaryEntity {
   followings = 0;
   following = false;
   reported = false;
+  createdItems = 0;
+  collectedItems = 0;
+  onSaleItems = 0;
+  likedItems = 0;
 
   static findByPubKey(pubKey: string) {
     if (!pubKey) {

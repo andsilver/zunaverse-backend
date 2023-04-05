@@ -73,6 +73,8 @@ export class Collection extends PrimaryEntity {
 
   postImages: string[] = [];
   shortLink: ShortLink;
+  favorites: number;
+  favorited: boolean;
 
   async calculateMetrics() {
     this.items = await Nft.count({ where: { collectionId: this.id } });

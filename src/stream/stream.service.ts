@@ -338,6 +338,7 @@ export class StreamService {
     }
     nft.owner = toUser;
     nft.currentAskId = null;
+    nft.highestBidId = null;
 
     await Ask.delete(nft.tokenIdentity);
 

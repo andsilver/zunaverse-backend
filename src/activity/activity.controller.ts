@@ -3,38 +3,28 @@ import { ACTIVITY_EVENTS, PAGINATION } from 'src/consts';
 import { Activity } from 'src/database/entities/Activity';
 import { Nft } from 'src/database/entities/Nft';
 import { User } from 'src/database/entities/User';
+import { buildPagination } from 'src/shared/utils/helper';
 
 @Controller('activities')
 export class ActivityController {
   @Get()
   async filterActivities(@Query() query: any) {
-    const { offset, categories, collectionId } = query;
+    const { categories, collectionId, order, orderBy, page, size } = query;
     const address = query.address
       ? (query.address as string).toLowerCase()
       : '';
 
     let qb = Activity.createQueryBuilder('a')
-      .leftJoinAndMapOne(
-        'a.user',
-        User,
-        'Users1',
-        'Users1.pubKey = a.userAddress',
-      )
-      .leftJoinAndMapOne(
-        'a.receiver',
-        User,
-        'Users2',
-        'Users2.pubKey = a.receiver',
-      )
+      .innerJoinAndMapOne('a.user', User, 'u1', 'u1.pubKey = a.userAddress')
+      .leftJoinAndMapOne('a.receiver', User, 'u2', 'u2.pubKey = a.receiver')
       .leftJoinAndMapOne(
         'a.nft',
         Nft,
-        'Nfts',
-        'Nfts.tokenId = a.tokenId AND Nfts.tokenAddress = a.tokenAddress',
+        'n',
+        'n.tokenId = a.tokenId AND n.tokenAddress = a.tokenAddress',
       )
-      .orderBy('a.createdAt', 'DESC')
-      .skip(+offset || 0)
-      .take(PAGINATION);
+      .innerJoinAndMapOne('n.owner', User, 'u3', 'u3.id = n.ownerId')
+      .orderBy(`a.${orderBy || 'createdAt'}`, order || 'DESC');
 
     if (address) {
       qb = qb.where('(a.userAddress = :address OR a.receiver = :address)', {
@@ -46,10 +36,10 @@ export class ActivityController {
       qb = qb.andWhere('a.collectionId = :collectionId', { collectionId });
     }
 
-    if (categories?.length) {
+    if (categories) {
       const events = [];
 
-      for (const c of categories) {
+      for (const c of categories.split(',')) {
         if (typeof ACTIVITY_EVENTS[c] === 'string') {
           events.push(ACTIVITY_EVENTS[c]);
         } else {
@@ -60,8 +50,14 @@ export class ActivityController {
       qb = qb.andWhere('a.event IN (:...events)', { events });
     }
 
-    const activities = await qb.getMany();
+    const pageSize = +size || PAGINATION;
+    const currentPage = +(page || 1);
+    const total = await qb.getCount();
+    const data = await qb
+      .skip((currentPage - 1) * pageSize)
+      .take(pageSize)
+      .getMany();
 
-    return activities;
+    return { data, pagination: buildPagination(total, currentPage, pageSize) };
   }
 }

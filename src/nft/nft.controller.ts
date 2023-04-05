@@ -30,6 +30,7 @@ import { AuthGuard } from 'src/shared/guards/auth.guard';
 import { ShortLink } from 'src/database/entities/ShortLink';
 import { CreateNftDto, CreateTempNftDto } from './nft.dto';
 import { TempNft } from 'src/database/entities/TempNft';
+import { buildPagination } from 'src/shared/utils/helper';
 
 @Controller('nft')
 export class NftController {
@@ -135,11 +136,11 @@ export class NftController {
       category,
       collectionId,
       properties,
-      offset,
       size,
       currency,
       orderBy,
       order,
+      page,
     } = query;
 
     let qb = Nft.createQueryBuilder('Nfts')
@@ -155,6 +156,12 @@ export class NftController {
         Ask,
         'Asks',
         'Asks.id = Nfts.currentAskId',
+      )
+      .leftJoinAndMapOne(
+        'Nfts.highestBid',
+        Bid,
+        'b',
+        'b.id = Nfts.highestBidId',
       )
       .addSelect(
         (sub) =>
@@ -290,19 +297,21 @@ export class NftController {
       qb.orderBy('Nfts.createdAt', order || 'DESC');
     }
 
-    const count = await qb.getCount();
+    const total = await qb.getCount();
+    const currentPage = +(page || 1);
+
     const { raw, entities } = await qb
-      .skip(offset || 0)
+      .skip((currentPage - 1) * PAGINATION)
       .take(size && size < 50 ? size : PAGINATION)
       .getRawAndEntities();
 
-    const result = entities.map((e, index) => {
+    const data = entities.map((e, index) => {
       e.favorites = +raw[index].favorites;
       e.favorited = !!+raw[index].favorited;
       return e;
     });
 
-    return { result, count };
+    return { data, pagination: buildPagination(total, currentPage) };
   }
 
   @Post(':tokenAddress/:tokenId/favorite')
@@ -323,7 +332,10 @@ export class NftController {
     if (favorite) {
       await favorite.remove();
     } else {
-      let nft = await Nft.findOneBy({ tokenId, tokenAddress });
+      let nft = await Nft.findOne({
+        where: { tokenId, tokenAddress },
+        relations: ['owner'],
+      });
 
       if (!nft) {
         nft = await Nft.createFromMoralis(tokenAddress, tokenId);
@@ -345,6 +357,7 @@ export class NftController {
         event: ACTIVITY_EVENTS.LIKES,
         createdAt: Date.now().toString(),
         userAddress: user.pubKey,
+        receiver: nft.owner.pubKey,
         collectionId: nft ? nft.collectionId : null,
       });
       await activity.save();
@@ -481,6 +494,7 @@ export class NftController {
         tokenId,
         tokenAddress,
       })
+      .leftJoinAndMapOne('a.receiver', User, 'ur', 'ur.pubKey = a.receiver')
       .leftJoinAndMapOne('a.user', User, 'u', 'u.pubKey = a.userAddress')
       .orderBy('a.createdAt', 'DESC')
       .skip(+offset || 0)
@@ -564,6 +578,7 @@ export class NftController {
       createdAt: Date.now().toString(),
       event: ACTIVITY_EVENTS.BIDS.NEW_BID,
       userAddress: user.pubKey,
+      receiver: nft.owner.pubKey,
       collectionId: nft.collectionId,
       ...nft.tokenIdentity,
     });
@@ -583,6 +598,8 @@ export class NftController {
       ...nft.tokenIdentity,
     });
     await notification.save();
+
+    await nft.setHighestBidId();
 
     return { success: true };
   }
@@ -610,6 +627,7 @@ export class NftController {
     }
 
     nft.onSale = false;
+    nft.highestBidId = null;
 
     await Bid.delete({ tokenAddress, tokenId });
     await nft.save();

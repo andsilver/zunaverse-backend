@@ -29,6 +29,10 @@ export class FixService {
     private stream: StreamService,
   ) {}
 
+  async fix() {
+    await this.addHighestBid();
+  }
+
   async fixTransactions() {
     const collections = await Collection.find({});
 
@@ -79,8 +83,6 @@ export class FixService {
         try {
           const { data } = await axios.get(nft.tokenUri);
 
-          console.log(nft.id, data);
-
           const { name, description, image } = data;
 
           nft.name = name;
@@ -114,21 +116,16 @@ export class FixService {
     }
   }
 
-  async fix() {
-    // await this.fixTransactions();
-    await this.fixNftMetadata();
-  }
-
   async fixNftOwners() {
-    // await this.addCoins();
-    // await this.burn();
-    // await this.collectionShortLinks();
     const chain =
       process.env.NODE_ENV === 'production'
         ? EvmChain.BSC
         : EvmChain.BSC_TESTNET;
 
-    const nfts = await Nft.find({ relations: ['owner'] });
+    const nfts = await Nft.find({
+      relations: ['owner'],
+      where: { minted: true },
+    });
 
     for (const nft of nfts) {
       const tokenId = nft.tokenId;
@@ -328,5 +325,13 @@ export class FixService {
       usd: 0,
       decimals: 18,
     }).save();
+  }
+
+  async addHighestBid() {
+    const nfts = await Nft.find();
+
+    for (const nft of nfts) {
+      await nft.setHighestBidId();
+    }
   }
 }

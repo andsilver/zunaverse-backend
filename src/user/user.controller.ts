@@ -32,11 +32,217 @@ import {
 } from 'src/shared/utils/cloudinary';
 import { RewardDetail } from 'src/database/entities/RewardDetail';
 import { MoralisService } from 'src/shared/services/moralis.service';
-import { convertIpfsIntoReadable } from 'src/shared/utils/helper';
+import {
+  buildPagination,
+  convertIpfsIntoReadable,
+} from 'src/shared/utils/helper';
+import { UserCategoryView } from 'src/database/views/UserCategory';
+import { In, IsNull, Not } from 'typeorm';
+import { Currency } from 'src/database/entities/Currency';
+import { UserCurrencyView } from 'src/database/views/UserCurrency';
+import { UserSellAmountView } from 'src/database/views/UserSellAmount';
+import { Transaction } from 'src/database/entities/Transaction';
+import moment from 'moment';
 
 @Controller('user')
 export class UserController {
   constructor(private moralis: MoralisService) {}
+
+  @Get('filter')
+  async filterUsers(@Query() query: any, @CurrentUser() user: User) {
+    const { page, orderBy, category, search, currency } = query;
+
+    const qb = User.createQueryBuilder('u')
+      .leftJoinAndMapOne(
+        'u.sold',
+        UserSellAmountView,
+        't',
+        't.seller = u.pubKey',
+      )
+      .addSelect(
+        (sub) =>
+          sub
+            .select('COUNT(id)', 'creates')
+            .from(Nft, 'n')
+            .where('n.creatorId = u.id'),
+        'creates',
+      )
+      .addSelect(
+        (sub) =>
+          sub
+            .select('COUNT(id)', 'followers')
+            .from(Follow, 'f')
+            .where('u.pubKey = f.user'),
+        'followers',
+      );
+
+    if (search) {
+      qb.where('(u.name ILIKE :search OR u.pubKey ILIKE :search)', { search });
+    }
+
+    if (category) {
+      qb.innerJoin(UserCategoryView, 'uc', 'u.id = uc.id').andWhere(
+        `uc.categories && '{${category.toLowerCase()}}' = true`,
+      );
+    }
+
+    if (currency) {
+      const currencies = await Currency.findBy({
+        symbol: In(currency.split(',')),
+      });
+      qb.innerJoin(UserCurrencyView, 'ucv', 'ucv.id = u.id').andWhere(
+        `ucv.currency && '{${currencies
+          .map((c) => c.address)
+          .join(',')}}' = true`,
+      );
+    }
+
+    if (user) {
+      qb.addSelect(
+        (sub) =>
+          sub
+            .select('COUNT(id)', 'following')
+            .from(Follow, 'f')
+            .where('u.pubKey = f.user AND f.followee = :address', {
+              address: user.pubKey,
+            }),
+        'following',
+      );
+    }
+
+    const currentPage = +(page || 1);
+    const total = await qb.getCount();
+
+    if (orderBy === 'volume') {
+      qb.orderBy('t.amount', 'DESC');
+    } else if (orderBy === 'creations') {
+      qb.orderBy('creates', 'DESC');
+    } else if (orderBy === 'followers') {
+      qb.orderBy('followers', 'DESC');
+    }
+
+    const { entities, raw } = await qb
+      .take(PAGINATION)
+      .skip((currentPage - 1) * PAGINATION)
+      .getRawAndEntities();
+
+    return {
+      data: entities.map((e, index) => ({
+        ...e,
+        followers: +raw[index].followers,
+        following: Boolean(+raw[index].following),
+        creates: +raw[index].creates,
+      })),
+      pagination: buildPagination(total, currentPage),
+    };
+  }
+
+  @Get('revenue')
+  @UseGuards(AuthGuard)
+  async getUserRevenue(@CurrentUser() user: User) {
+    const transactions = await Transaction.createQueryBuilder('t')
+      .where(
+        '(t.buyer = :pubKey OR t.seller = :pubKey) AND (t.createdAt > :date)',
+        {
+          pubKey: user.pubKey,
+          date: moment().startOf('month').format('YYYY-MM-DD'),
+        },
+      )
+      .orderBy('t.createdAt', 'DESC')
+      .getMany();
+
+    const lastMonthTransactions = await Transaction.createQueryBuilder('t')
+      .where(
+        '(t.buyer = :pubKey OR t.seller = :pubKey) AND (t.createdAt > :date1 AND t.createdAt < :date2)',
+        {
+          pubKey: user.pubKey,
+          date1: moment()
+            .subtract(1, 'month')
+            .startOf('month')
+            .format('YYYY-MM-DD'),
+          date2: moment().startOf('month').format('YYYY-MM-DD'),
+        },
+      )
+      .getMany();
+
+    const lastMonthVolume = lastMonthTransactions.reduce(
+      (a, b) => a + b.usd,
+      0,
+    );
+
+    const total = transactions.reduce((a, b) => a + b.usd, 0);
+    const sales = transactions.reduce(
+      (a, b) => a + (b.seller === user.pubKey ? b.usd : 0),
+      0,
+    );
+    const investment = transactions.reduce(
+      (a, b) => a + (b.buyer === user.pubKey ? b.usd : 0),
+      0,
+    );
+    const netchange = sales - investment;
+
+    const daily = transactions.reduce((a, b) => {
+      const day = moment(b.createdAt).format('YYYY-MM-DD');
+
+      if (moment().subtract(1, 'week').isBefore(day)) {
+        (a[day] = a[day] || []).push({
+          ...b,
+          weekday: moment(b.createdAt).format('ddd'),
+        });
+      }
+      return a;
+    }, {});
+
+    const chartData = Object.values(daily).map((v: any[]) => {
+      const sale = v.reduce(
+        (a, b) => a + (b.seller === user.pubKey ? b.usd : 0),
+        0,
+      );
+      const buy = v.reduce(
+        (a, b) => a + (b.buyer === user.pubKey ? b.usd : 0),
+        0,
+      );
+      return {
+        sale,
+        buy,
+        weekday: v[0].weekday,
+      };
+    });
+    const data = {
+      labels: chartData.map((c) => c.weekday),
+      datasets: [
+        {
+          label: 'Income',
+          data: chartData.map((c) => c.sale.toFixed(2)),
+          backgroundColor: '#49CDBD',
+          borderRadius: 12,
+          borderSkipped: false,
+          barThickness: 14,
+          borderColor: 'rgba(0,0,0,0)',
+          borderWidth: 2,
+        },
+        {
+          label: 'Investment',
+          data: chartData.map((c) => c.buy.toFixed(2)),
+          backgroundColor: '#0D9BFE',
+          borderRadius: 12,
+          borderSkipped: false,
+          barThickness: 14,
+          borderColor: 'rgba(0,0,0,0)',
+          borderWidth: 2,
+        },
+      ],
+    };
+
+    return {
+      total: total.toFixed(2),
+      sales: sales.toFixed(2),
+      investment: investment.toFixed(2),
+      netchange: netchange.toFixed(2),
+      data,
+      change: Math.round((total / lastMonthVolume) * 100) - 100,
+    };
+  }
 
   @Get('me')
   @UseGuards(AuthGuard)
@@ -57,15 +263,49 @@ export class UserController {
       throw new UnprocessableEntityException('User does not exist');
     }
 
-    profile.followers = await Follow.count({
-      where: {
-        user: profile.pubKey,
-      },
-    });
+    const [
+      followers,
+      followings,
+      collectedItems,
+      createdItems,
+      onSale,
+      likedItems,
+    ] = await Promise.all([
+      await Follow.count({
+        where: {
+          user: profile.pubKey,
+        },
+      }),
+      Follow.count({
+        where: { followee: profile.pubKey },
+      }),
+      Nft.countBy({
+        owner: {
+          pubKey: profile.pubKey,
+        },
+      }),
+      Nft.countBy({
+        creator: {
+          pubKey: profile.pubKey,
+        },
+      }),
+      Nft.countBy({
+        owner: {
+          pubKey: profile.pubKey,
+        },
+        currentAskId: Not(IsNull()),
+      }),
+      Favorite.countBy({
+        userAddress: profile.pubKey,
+      }),
+    ]);
 
-    profile.followings = await Follow.count({
-      where: { followee: profile.pubKey },
-    });
+    profile.followers = followers;
+    profile.followings = followings;
+    profile.collectedItems = collectedItems;
+    profile.createdItems = createdItems;
+    profile.onSaleItems = onSale;
+    profile.likedItems = likedItems;
 
     if (user) {
       const following = await Follow.findOneBy({
@@ -80,6 +320,34 @@ export class UserController {
       profile.reported = !!report;
     }
     return profile;
+  }
+
+  @Get(':address/rewards')
+  @UseGuards(AuthGuard)
+  async getUserRewards(@Param('address') address: string) {
+    const staticRewards = [
+      205 * 10 ** 9 * 10 ** 9,
+      120 * 10 ** 9 * 10 ** 9,
+      14 * 10 ** 9 * 10 ** 9,
+      70 * 10 ** 8 * 10 ** 9,
+      36 * 10 ** 8 * 10 ** 9,
+      2 * 10 ** 9 * 10 ** 9,
+    ];
+    const buybackRewards = [300000, 120000, 9850, 4000, 2000, 800];
+
+    const rewardDetails = await RewardDetail.findBy({
+      userPubKey: address,
+    });
+
+    const amount = rewardDetails.reduce((sum, r) => {
+      const rewardAmount =
+        r.rewardType === 'buyback'
+          ? buybackRewards[r.rewardTier]
+          : staticRewards[r.rewardTier];
+      return rewardAmount + sum;
+    }, 0);
+
+    return { amount };
   }
 
   @Patch(':address')
@@ -139,14 +407,15 @@ export class UserController {
   ) {
     address = address.toLowerCase();
 
-    const { offset } = query;
+    const { page, size, search, category, saleType, currency } = query;
+
     let qb = Favorite.createQueryBuilder('f')
       .where('f.userAddress = :address', { address })
       .innerJoinAndMapOne(
         'f.nft',
         Nft,
         'n',
-        'f.tokenId = n.tokenId AND f.tokenId = n.tokenAddress',
+        'f.tokenId = n.tokenId AND f.tokenAddress = n.tokenAddress',
       )
       .leftJoinAndMapOne('n.currentAsk', Ask, 'a', 'n.currentAskId = a.id')
       .leftJoinAndMapOne('n.owner', User, 'u', 'u.id = n.ownerId')
@@ -161,33 +430,76 @@ export class UserController {
         'favorites',
       );
 
-    if (user) {
-      qb = qb.addSelect(
-        (sub) =>
-          sub
-            .select('COUNT(f2.id)', 'favorited')
-            .from(Favorite, 'f2')
-            .where(
-              'n.tokenId = f2.tokenId AND n.tokenAddress = f2.tokenAddress AND f2.userAddress = :address',
-              {
-                address: user.pubKey,
-              },
-            ),
-        'favorited',
+    // if (user) {
+    //   qb = qb.addSelect(
+    //     (sub) =>
+    //       sub
+    //         .select('COUNT(f2.id)', 'favorited')
+    //         .from(Favorite, 'f2')
+    //         .where(
+    //           'n.tokenId = f2.tokenId AND n.tokenAddress = f2.tokenAddress AND f2.userAddress = :address',
+    //           {
+    //             address: user.pubKey,
+    //           },
+    //         ),
+    //     'favorited',
+    //   );
+    // }
+
+    if (category) {
+      const c = category.split(',');
+
+      if (c.length) {
+        qb = qb.andWhere('n.category IN (:...categories)', {
+          categories: c,
+        });
+      }
+    }
+
+    if (search) {
+      qb = qb.andWhere(
+        `(n.name ILIKE '%${search}%' OR n.description ILIKE '%${search}%')`,
       );
     }
 
+    if (saleType) {
+      if (saleType === 'Buy Now') {
+        qb = qb.andWhere('a.amount IS NOT NULL');
+      } else if (saleType === 'Open to bids') {
+        qb = qb.andWhere('n.onSale = true');
+      } else if (saleType === 'Not for sale') {
+        qb = qb.andWhere('(n.onSale = false AND a.amount IS NULL)');
+      }
+    }
+
+    if (currency) {
+      qb.andWhere('a.currency = :currency', {
+        currency: currency.toLowerCase(),
+      });
+    }
+
+    const pageSize = +size || PAGINATION;
+    const currentPage = +(page || 1);
+    const total = await qb.getCount();
+
     const { entities, raw } = await qb
-      .offset(+offset || 0)
-      .take(PAGINATION)
+      .skip((currentPage - 1) * pageSize)
+      .take(pageSize)
+      .orderBy('f.createdAt', 'DESC')
       .getRawAndEntities();
 
-    return entities.map((e: any, index) => ({
+    const data = entities.map((e: any, index) => ({
       ...e.nft,
       favorited: user ? raw[index].favorited : false,
       favorites: raw[index].favorites,
       image: convertIpfsIntoReadable(e.nft.image, e.nft.tokenAddress),
+      favoritedAt: e.createdAt,
     }));
+
+    return {
+      data,
+      pagination: buildPagination(total, currentPage, pageSize),
+    };
   }
 
   @Get(':address/followers')
@@ -241,15 +553,21 @@ export class UserController {
     @Param('address') address: string,
     @Query() query: any,
   ) {
-    const { offset } = query;
+    const { page, currency, order, orderBy } = query;
     address = address.toLowerCase();
 
-    const bids = await Bid.createQueryBuilder('Bids')
+    const qb = Bid.createQueryBuilder('Bids')
       .innerJoinAndMapOne(
         'Bids.nft',
         Nft,
         'Nfts',
         'Bids.tokenId = Nfts.tokenId AND Bids.tokenAddress = Nfts.tokenAddress',
+      )
+      .leftJoinAndMapOne(
+        'Nfts.currentAsk',
+        Ask,
+        'a',
+        'Nfts.currentAskId = a.id',
       )
       .innerJoin(User, 'owner', 'owner.id = Nfts.ownerId')
       .innerJoinAndMapOne(
@@ -258,13 +576,42 @@ export class UserController {
         'Users',
         'Users.pubKey = Bids.bidder',
       )
-      .where('owner.pubKey = :address', { address })
-      .orderBy('Bids.createdAt', 'DESC')
-      .offset(+offset || 0)
+      .where('owner.pubKey = :address', { address });
+
+    if (currency) {
+      const currencies = (
+        await Currency.findBy({
+          symbol: In(currency.split(',')),
+        })
+      ).map((c) => c.address);
+      qb.andWhere('Bids.currency IN (:...currencies)', { currencies });
+    }
+
+    if (orderBy === 'createdAt') {
+      qb.orderBy('Bids.createdAt', order || 'DESC');
+    } else if (orderBy === 'price') {
+      qb.addSelect(
+        (sb) =>
+          sb
+            .select('Bids.amount * c.usd', 'usd')
+            .from(Currency, 'c')
+            .where('Bids.currency = c.address'),
+        'price',
+      ).orderBy('price', order || 'DESC');
+    }
+
+    const currentPage = +(page || 1);
+    const total = await qb.getCount();
+
+    const data = await qb
       .take(PAGINATION)
+      .skip((currentPage - 1) * PAGINATION)
       .getMany();
 
-    return bids;
+    return {
+      data,
+      pagination: buildPagination(total, currentPage),
+    };
   }
 
   @Get(':address/bids/outgoing')
@@ -272,24 +619,59 @@ export class UserController {
     @Param('address') address: string,
     @Query() query: any,
   ) {
-    const { offset } = query;
+    const { page, currency, order, orderBy } = query;
     address = address.toLowerCase();
 
-    const bids = await Bid.createQueryBuilder('Bids')
-      .leftJoinAndMapOne(
+    const qb = Bid.createQueryBuilder('Bids')
+      .innerJoinAndMapOne(
         'Bids.nft',
         Nft,
         'Nfts',
         'Bids.tokenId = Nfts.tokenId AND Bids.tokenAddress = Nfts.tokenAddress',
       )
-      .leftJoinAndMapOne('Nfts.owner', User, 'Users', 'Users.id = Nfts.owner')
-      .where('Bids.bidder = :address', { address })
-      .orderBy('Bids.createdAt', 'DESC')
-      .offset(+offset || 0)
+      .leftJoinAndMapOne(
+        'Nfts.currentAsk',
+        Ask,
+        'a',
+        'Nfts.currentAskId = a.id',
+      )
+      .innerJoinAndMapOne('Nfts.owner', User, 'Users', 'Users.id = Nfts.owner')
+      .where('Bids.bidder = :address', { address });
+
+    if (currency) {
+      const currencies = (
+        await Currency.findBy({
+          symbol: In(currency.split(',')),
+        })
+      ).map((c) => c.address);
+      qb.andWhere('Bids.currency IN (:...currencies)', { currencies });
+    }
+
+    if (orderBy === 'createdAt') {
+      qb.orderBy('Bids.createdAt', order || 'DESC');
+    } else if (orderBy === 'price') {
+      qb.addSelect(
+        (sb) =>
+          sb
+            .select('Bids.amount * c.usd', 'usd')
+            .from(Currency, 'c')
+            .where('Bids.currency = c.address'),
+        'price',
+      ).orderBy('price', order || 'DESC');
+    }
+
+    const currentPage = +(page || 1);
+    const total = await qb.getCount();
+
+    const data = await qb
       .take(PAGINATION)
+      .skip((currentPage - 1) * PAGINATION)
       .getMany();
 
-    return bids;
+    return {
+      data,
+      pagination: buildPagination(total, currentPage),
+    };
   }
 
   @Get(':address/activities')
