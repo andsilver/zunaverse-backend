@@ -10,7 +10,7 @@ export async function uploadNftImageCloudinary(url: string) {
   return await cloudinary.uploader.upload(url, {
     folder: 'nfts',
     transformation: {
-      width: 400,
+      height: 600,
       crop: 'scale',
     },
   });

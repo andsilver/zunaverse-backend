@@ -417,6 +417,7 @@ export class UserController {
         'n',
         'f.tokenId = n.tokenId AND f.tokenAddress = n.tokenAddress',
       )
+      .leftJoinAndMapOne('n.highestBid', Bid, 'b', 'b.id = n.highestBidId')
       .leftJoinAndMapOne('n.currentAsk', Ask, 'a', 'n.currentAskId = a.id')
       .leftJoinAndMapOne('n.owner', User, 'u', 'u.id = n.ownerId')
       .addSelect(
@@ -430,21 +431,21 @@ export class UserController {
         'favorites',
       );
 
-    // if (user) {
-    //   qb = qb.addSelect(
-    //     (sub) =>
-    //       sub
-    //         .select('COUNT(f2.id)', 'favorited')
-    //         .from(Favorite, 'f2')
-    //         .where(
-    //           'n.tokenId = f2.tokenId AND n.tokenAddress = f2.tokenAddress AND f2.userAddress = :address',
-    //           {
-    //             address: user.pubKey,
-    //           },
-    //         ),
-    //     'favorited',
-    //   );
-    // }
+    if (user) {
+      qb = qb.addSelect(
+        (sub) =>
+          sub
+            .select('COUNT(f2.id)', 'favorited')
+            .from(Favorite, 'f2')
+            .where(
+              'n.tokenId = f2.tokenId AND n.tokenAddress = f2.tokenAddress AND f2.userAddress = :address',
+              {
+                address: user.pubKey,
+              },
+            ),
+        'favorited',
+      );
+    }
 
     if (category) {
       const c = category.split(',');
