@@ -249,15 +249,11 @@ export class NftController {
       qb.addSelect(
         (sub) =>
           sub
-            .select('COALESCE(cu.usd * CAST(a.amount AS DECIMAL), 0)', 'price')
+            .select('cu.usd * CAST(a.amount AS DECIMAL)', 'price')
             .from(Currency, 'cu')
             .where('a.currency = cu.address'),
         'price',
-      ).orderBy(
-        'price',
-        order || 'DESC',
-        order === 'ASC' ? 'NULLS FIRST' : 'NULLS LAST',
-      );
+      ).orderBy('price', order || 'DESC', 'NULLS LAST');
     } else if (orderBy === 'createdAt' || !orderBy) {
       qb.orderBy('n.createdAt', order || 'DESC');
     }
