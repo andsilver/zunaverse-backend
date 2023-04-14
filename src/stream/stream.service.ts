@@ -20,6 +20,7 @@ import { Bid } from 'src/database/entities/Bid';
 import { ACTIVITY_EVENTS, BURN_ADDRESSES } from 'src/consts';
 import { Collection } from 'src/database/entities/Collection';
 import { TempNft } from 'src/database/entities/TempNft';
+import { Showcase } from 'src/database/entities/Showcase';
 
 @Injectable()
 export class StreamService {
@@ -363,6 +364,7 @@ export class StreamService {
       ]);
     }
     await nft.save();
+    await Showcase.delete({ nftId: nft.id });
 
     if (nft.collectionId) {
       await this.calculateCollection(nft.collectionId);

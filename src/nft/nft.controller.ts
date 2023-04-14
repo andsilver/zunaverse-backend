@@ -14,6 +14,7 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { In } from 'typeorm';
 
 import { ACTIVITY_EVENTS, PAGINATION } from 'src/consts';
 import { Activity } from 'src/database/entities/Activity';
@@ -31,6 +32,8 @@ import { ShortLink } from 'src/database/entities/ShortLink';
 import { CreateNftDto, CreateTempNftDto } from './nft.dto';
 import { TempNft } from 'src/database/entities/TempNft';
 import { buildPagination } from 'src/shared/utils/helper';
+import { Showcase } from 'src/database/entities/Showcase';
+import { selectNfts } from 'src/database/query-helper';
 
 @Controller('nft')
 export class NftController {
@@ -45,7 +48,6 @@ export class NftController {
     const {
       name,
       description,
-      category,
       royaltyFee,
       collectionId,
       tokenId,
@@ -53,8 +55,11 @@ export class NftController {
       properties,
     } = body;
 
+    let category = body.category;
+
     if (collectionId) {
       const collection = await Collection.findOneBy({ id: +collectionId });
+      category = collection.category;
 
       if (!collection) {
         throw new BadRequestException('Invalid collection Id');
@@ -141,41 +146,17 @@ export class NftController {
       orderBy,
       order,
       page,
+      showcase,
     } = query;
 
-    let qb = Nft.createQueryBuilder('Nfts')
-      .leftJoinAndMapOne('Nfts.owner', User, 'Users', 'Users.id = Nfts.ownerId')
-      .leftJoinAndMapOne(
-        'Nfts.collection',
-        Collection,
-        'Collections',
-        'Collections.id = Nfts.collectionId',
-      )
-      .leftJoinAndMapOne(
-        'Nfts.currentAsk',
-        Ask,
-        'Asks',
-        'Asks.id = Nfts.currentAskId',
-      )
-      .leftJoinAndMapOne(
-        'Nfts.highestBid',
-        Bid,
-        'b',
-        'b.id = Nfts.highestBidId',
-      )
-      .addSelect(
-        (sub) =>
-          sub
-            .select('COUNT(f.id)', 'favorites')
-            .from(Favorite, 'f')
-            .where(
-              'Nfts.tokenId = f.tokenId AND Nfts.tokenAddress = f.tokenAddress',
-            ),
-        'favorites',
-      );
+    let qb = selectNfts<Nft>(Nft.createQueryBuilder('n'), user);
+
+    if (showcase) {
+      qb.leftJoinAndMapOne('n.showcase', Showcase, 's', 's.nftId = n.id');
+    }
 
     if (userAddress) {
-      qb = qb.where('Users.pubKey = :userAddress', {
+      qb = qb.where('u.pubKey = :userAddress', {
         userAddress: userAddress.toLowerCase(),
       });
     }
@@ -184,14 +165,14 @@ export class NftController {
       const creator = await User.findByPubKey(creatorAddress);
 
       if (creator) {
-        qb = qb.andWhere('Nfts.creatorId = :creatorId', {
+        qb = qb.andWhere('n.creatorId = :creatorId', {
           creatorId: creator.id,
         });
       }
     }
 
     if (collectionId) {
-      qb = qb.andWhere('Collections.id = :collectionId', {
+      qb = qb.andWhere('c.id = :collectionId', {
         collectionId: +collectionId,
       });
     }
@@ -200,54 +181,41 @@ export class NftController {
       const c = categories.split(',');
 
       if (c.length) {
-        qb = qb.andWhere('Nfts.category IN (:...categories)', {
+        qb = qb.andWhere('n.category IN (:...categories)', {
           categories: c,
         });
       }
     }
 
     if (category) {
-      qb = qb.andWhere('Nfts.category = :category', {
+      qb = qb.andWhere('n.category = :category', {
         category,
       });
     }
 
     if (search) {
       qb = qb.andWhere(
-        `(Nfts.name ILIKE '%${search}%' OR Nfts.description ILIKE '%${search}%')`,
+        `(n.name ILIKE '%${search}%' OR n.description ILIKE '%${search}%')`,
       );
     }
 
     if (saleType) {
       if (saleType === 'Buy Now') {
-        qb = qb.andWhere('Nfts.currentAskId IS NOT NULL');
+        qb = qb.andWhere('n.currentAskId IS NOT NULL');
       } else if (saleType === 'Open to bids') {
-        qb = qb.andWhere('Nfts.onSale = true');
+        qb = qb.andWhere('n.onSale = true');
       } else if (saleType === 'Not for sale') {
-        qb = qb.andWhere('(Nfts.onSale = false AND Nfts.currentAskId IS NULL)');
+        qb = qb.andWhere('(n.onSale = false AND n.currentAskId IS NULL)');
       }
     }
 
-    if (user) {
-      qb = qb.addSelect(
-        (sub) =>
-          sub
-            .select('COUNT(f.id)', 'favorited')
-            .from(Favorite, 'f')
-            .where(
-              'Nfts.tokenId = f.tokenId AND Nfts.tokenAddress = f.tokenAddress AND f.userAddress = :address',
-              {
-                address: user.pubKey,
-              },
-            ),
-        'favorited',
-      );
-    }
-
     if (currency) {
-      qb.andWhere('Asks.currency = :currency', {
-        currency: currency.toLowerCase(),
-      });
+      const currencies = (
+        await Currency.findBy({
+          symbol: In(currency.split(',')),
+        })
+      ).map((c) => c.address);
+      qb.andWhere('a.currency IN (:...currencies)', { currencies });
     }
 
     if (properties) {
@@ -270,7 +238,7 @@ export class NftController {
           SELECT
             *
           FROM
-            JSON_TO_RECORDSET(Nfts.properties) as p(name text, value text)
+            JSON_TO_RECORDSET(n.properties) as p(name text, value text)
           WHERE
             ${propertiesQuery}
         )
@@ -281,12 +249,9 @@ export class NftController {
       qb.addSelect(
         (sub) =>
           sub
-            .select(
-              'COALESCE(Currency.usd * CAST(Asks.amount AS DECIMAL), 0)',
-              'price',
-            )
-            .from(Currency, 'Currency')
-            .where('Asks.currency = Currency.address'),
+            .select('COALESCE(cu.usd * CAST(a.amount AS DECIMAL), 0)', 'price')
+            .from(Currency, 'cu')
+            .where('a.currency = cu.address'),
         'price',
       ).orderBy(
         'price',
@@ -294,7 +259,7 @@ export class NftController {
         order === 'ASC' ? 'NULLS FIRST' : 'NULLS LAST',
       );
     } else if (orderBy === 'createdAt' || !orderBy) {
-      qb.orderBy('Nfts.createdAt', order || 'DESC');
+      qb.orderBy('n.createdAt', order || 'DESC');
     }
 
     const total = await qb.getCount();
@@ -781,5 +746,49 @@ export class NftController {
       tokenId,
     );
     return shortLink;
+  }
+
+  @Post(':tokenAddress/:tokenId/showcase')
+  @UseGuards(AuthGuard)
+  async featureNft(
+    @Param('tokenAddress') tokenAddress: string,
+    @Param('tokenId') tokenId: string,
+    @CurrentUser() user: User,
+  ) {
+    tokenAddress = tokenAddress.toLowerCase();
+
+    const nft = await Nft.findOneBy({
+      tokenId,
+      tokenAddress,
+    });
+
+    if (!nft) {
+      throw new UnprocessableEntityException('Nft not found');
+    }
+
+    if (nft.ownerId !== user.id) {
+      throw new BadRequestException('Not the nft owner');
+    }
+    let showcase = await Showcase.findOneBy({ nftId: nft.id });
+
+    if (!showcase) {
+      const lastShowcase = await Showcase.findOne({
+        where: {
+          userId: user.id,
+        },
+        order: {
+          order: 'DESC',
+        },
+      });
+      showcase = await Showcase.create({
+        userId: user.id,
+        nftId: nft.id,
+        order: lastShowcase ? lastShowcase.order + 1 : 1,
+      }).save();
+    } else {
+      await showcase.remove();
+    }
+
+    return { success: true };
   }
 }

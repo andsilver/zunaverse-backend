@@ -27,6 +27,7 @@ import { CollectionCurrencyView } from './views/CollectionCurrency';
 import { UserCategoryView } from './views/UserCategory';
 import { UserCurrencyView } from './views/UserCurrency';
 import { UserSellAmountView } from './views/UserSellAmount';
+import { Showcase } from './entities/Showcase';
 
 @Module({
   imports: [
@@ -70,6 +71,7 @@ import { UserSellAmountView } from './views/UserSellAmount';
         UserCategoryView,
         UserCurrencyView,
         UserSellAmountView,
+        Showcase,
       ],
       synchronize: true,
     }),

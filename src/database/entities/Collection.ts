@@ -5,6 +5,7 @@ import { Nft } from './Nft';
 import { PrimaryEntity } from './primary-entity';
 import { ShortLink } from './ShortLink';
 import { User } from './User';
+import { NftCategory } from 'src/shared/types';
 
 @Entity('Collections')
 export class Collection extends PrimaryEntity {
@@ -66,7 +67,7 @@ export class Collection extends PrimaryEntity {
   featured: boolean;
 
   @Column({ nullable: true })
-  category: string;
+  category: NftCategory;
 
   @Column({ default: 0 })
   order: number;

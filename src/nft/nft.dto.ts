@@ -33,7 +33,7 @@ export class CreateTempNftDto {
   description: string;
 
   @IsEnum(NftCategory)
-  @IsNotEmpty()
+  @IsOptional()
   category: NftCategory;
 
   @IsNumberString()

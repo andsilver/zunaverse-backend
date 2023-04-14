@@ -1,6 +1,8 @@
 import {
+  BadRequestException,
   Body,
   Controller,
+  Delete,
   ForbiddenException,
   Get,
   Param,
@@ -37,16 +39,21 @@ import {
   convertIpfsIntoReadable,
 } from 'src/shared/utils/helper';
 import { UserCategoryView } from 'src/database/views/UserCategory';
-import { In, IsNull, Not } from 'typeorm';
+import { DataSource, In, IsNull, Not } from 'typeorm';
 import { Currency } from 'src/database/entities/Currency';
 import { UserCurrencyView } from 'src/database/views/UserCurrency';
 import { UserSellAmountView } from 'src/database/views/UserSellAmount';
 import { Transaction } from 'src/database/entities/Transaction';
 import moment from 'moment';
+import { Showcase } from 'src/database/entities/Showcase';
+import { selectNfts } from 'src/database/query-helper';
 
 @Controller('user')
 export class UserController {
-  constructor(private moralis: MoralisService) {}
+  constructor(
+    private moralis: MoralisService,
+    private dataSource: DataSource,
+  ) {}
 
   @Get('filter')
   async filterUsers(@Query() query: any, @CurrentUser() user: User) {
@@ -113,12 +120,12 @@ export class UserController {
     const currentPage = +(page || 1);
     const total = await qb.getCount();
 
-    if (orderBy === 'volume') {
-      qb.orderBy('t.amount', 'DESC');
-    } else if (orderBy === 'creations') {
+    if (orderBy === 'creations') {
       qb.orderBy('creates', 'DESC');
     } else if (orderBy === 'followers') {
       qb.orderBy('followers', 'DESC');
+    } else {
+      qb.orderBy('t.amount', 'DESC', 'NULLS LAST');
     }
 
     const { entities, raw } = await qb
@@ -399,6 +406,90 @@ export class UserController {
     await user.save();
   }
 
+  @Get(':address/showcase')
+  async getUserShowcase(@Param('address') address: string) {
+    address = address.toLowerCase();
+
+    const user = await User.findByPubKey(address);
+
+    if (!user) {
+      throw new UnprocessableEntityException('User not found');
+    }
+
+    const qb = Showcase.createQueryBuilder('s')
+      .where('s.userId = :userId', {
+        userId: user.id,
+      })
+      .innerJoinAndMapOne('s.nft', Nft, 'n', 'n.id = s.nftId');
+
+    const { entities, raw } = await selectNfts<Showcase>(qb)
+      .orderBy('s.order', 'ASC')
+      .getRawAndEntities();
+
+    const data = entities.map((e, index) => {
+      e.nft.favorites = +raw[index].favorites;
+      e.nft.favorited = !!+raw[index].favorited;
+      return e;
+    });
+    return data;
+  }
+
+  @Post(':address/showcase/remove')
+  @UseGuards(AuthGuard)
+  async removeItemsFromShowCase(
+    @Param('address') address: string,
+    @Body() body: number[],
+    @CurrentUser() currentUser: User,
+  ) {
+    address = address.toLowerCase();
+
+    if (currentUser.pubKey !== address) {
+      throw new BadRequestException('Not the showcase owner');
+    }
+
+    await Showcase.delete({
+      id: In(body),
+      userId: currentUser.id,
+    });
+
+    return { success: true };
+  }
+
+  @Patch(':address/showcase')
+  @UseGuards(AuthGuard)
+  async updateShowcase(
+    @Param('address') address: string,
+    @Body() body: { id: number; order: number }[],
+    @CurrentUser() currentUser: User,
+  ) {
+    address = address.toLowerCase();
+
+    if (currentUser.pubKey !== address) {
+      throw new BadRequestException('Not the showcase owner');
+    }
+
+    const queryRunner = this.dataSource.createQueryRunner();
+
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    try {
+      for (const e of body) {
+        await queryRunner.manager.update(
+          Showcase,
+          { id: e.id, userId: currentUser.id },
+          { order: e.order },
+        );
+      }
+      await queryRunner.commitTransaction();
+    } catch (err) {
+      await queryRunner.rollbackTransaction();
+    } finally {
+      await queryRunner.release();
+    }
+    return { success: true };
+  }
+
   @Get(':address/nfts/liked')
   async getUserFavoritedNfts(
     @Param('address') address: string,
@@ -474,9 +565,13 @@ export class UserController {
     }
 
     if (currency) {
-      qb.andWhere('a.currency = :currency', {
-        currency: currency.toLowerCase(),
-      });
+      const currencies = (
+        await Currency.findBy({
+          symbol: In(currency.split(',')),
+        })
+      ).map((c) => c.address);
+
+      qb.andWhere('a.currency IN (:...currencies)', { currencies });
     }
 
     const pageSize = +size || PAGINATION;

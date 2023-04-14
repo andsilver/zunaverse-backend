@@ -6,6 +6,6 @@ export enum NftCategory {
   Music = 'Music',
   Videos = 'Videos',
   Memes = 'Memes',
-  Metaverses = 'Metaverses',
+  Metaverse = 'Metaverse',
   ZunaNauts = 'ZunaNauts',
 }
