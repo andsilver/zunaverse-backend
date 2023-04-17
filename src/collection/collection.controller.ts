@@ -58,7 +58,7 @@ export class CollectionController {
     if (image) {
       const { secure_url } = await this.cloudinary.uploadImageCloudinary(
         image[0].path,
-        200,
+        400,
       );
       body.image = secure_url;
 
@@ -116,7 +116,7 @@ export class CollectionController {
     const { image, banner } = files;
 
     if (image) {
-      const { secure_url } = await uploadImageCloudinary(image[0].path, 200);
+      const { secure_url } = await uploadImageCloudinary(image[0].path, 400);
       collection.image = secure_url;
 
       const { secure_url: featuredImage } = await uploadImageCloudinary(
