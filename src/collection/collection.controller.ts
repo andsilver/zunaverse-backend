@@ -36,6 +36,7 @@ import { FavCollection } from 'src/database/entities/FavCollection';
 import { buildPagination } from 'src/shared/utils/helper';
 import { CollectionCurrencyView } from 'src/database/views/CollectionCurrency';
 import { Currency } from 'src/database/entities/Currency';
+import { FeaturedCollection } from 'src/database/entities/FeaturedCollection';
 
 @Controller('collection')
 export class CollectionController {
@@ -184,7 +185,17 @@ export class CollectionController {
 
   @Get('')
   async getCollections(@Query() query: any) {
-    const { page, owner, orderBy, category, search, currency, order } = query;
+    const {
+      page,
+      owner,
+      orderBy,
+      category,
+      search,
+      currency,
+      order,
+      featuredOnly,
+      featured,
+    } = query;
 
     const qb = Collection.createQueryBuilder('c').innerJoinAndMapOne(
       'c.owner',
@@ -219,6 +230,24 @@ export class CollectionController {
           .join(',')}}' = true`,
       );
     }
+
+    if (featured || featuredOnly) {
+      if (featuredOnly) {
+        qb.innerJoinAndMapOne(
+          'c.featured',
+          FeaturedCollection,
+          'fc',
+          'fc.collectionId = c.id',
+        );
+      } else {
+        qb.leftJoinAndMapOne(
+          'c.featured',
+          FeaturedCollection,
+          'fc',
+          'fc.collectionId = c.id',
+        );
+      }
+    }
     const currentPage = +(page || 1);
     const total = await qb.getCount();
 
@@ -235,6 +264,8 @@ export class CollectionController {
       qb.orderBy('c.totalVolume', 'DESC');
     } else if (orderBy === 'createdAt') {
       qb.orderBy('c.createdAt', order || 'DESC');
+    } else if (orderBy === 'featured') {
+      qb.orderBy('fc.order', 'ASC');
     }
     const data = await qb
       .take(PAGINATION)

@@ -323,16 +323,18 @@ export class NftController {
       });
       await activity.save();
 
-      const notification = Notification.create({
-        tokenId,
-        tokenAddress,
-        user: nft.owner,
-        text: 'Someone favorited your nft',
-        metadata: {
-          from: user.pubKey,
-        },
-      });
-      await notification.save();
+      if (user.pubKey !== nft.owner.pubKey) {
+        const notification = Notification.create({
+          tokenId,
+          tokenAddress,
+          user: nft.owner,
+          text: 'Someone favorited your nft',
+          metadata: {
+            from: user.pubKey,
+          },
+        });
+        await notification.save();
+      }
     }
 
     return { success: true };

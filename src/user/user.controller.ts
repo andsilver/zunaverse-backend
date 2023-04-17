@@ -2,7 +2,6 @@ import {
   BadRequestException,
   Body,
   Controller,
-  Delete,
   ForbiddenException,
   Get,
   Param,
@@ -47,6 +46,7 @@ import { Transaction } from 'src/database/entities/Transaction';
 import moment from 'moment';
 import { Showcase } from 'src/database/entities/Showcase';
 import { selectNfts } from 'src/database/query-helper';
+import { FeaturedUser } from 'src/database/entities/FeaturedUser';
 
 @Controller('user')
 export class UserController {
@@ -57,7 +57,16 @@ export class UserController {
 
   @Get('filter')
   async filterUsers(@Query() query: any, @CurrentUser() user: User) {
-    const { page, orderBy, category, search, currency } = query;
+    const {
+      page,
+      orderBy,
+      category,
+      search,
+      currency,
+      featured,
+      featuredOnly,
+      size,
+    } = query;
 
     const qb = User.createQueryBuilder('u')
       .leftJoinAndMapOne(
@@ -120,17 +129,39 @@ export class UserController {
     const currentPage = +(page || 1);
     const total = await qb.getCount();
 
+    if (featured || featuredOnly) {
+      if (featuredOnly) {
+        qb.innerJoinAndMapOne(
+          'u.featured',
+          FeaturedUser,
+          'fu',
+          'fu.userId = u.id',
+        );
+      } else {
+        qb.leftJoinAndMapOne(
+          'u.featured',
+          FeaturedUser,
+          'fu',
+          'fu.userId = u.id',
+        );
+      }
+    }
+
     if (orderBy === 'creations') {
       qb.orderBy('creates', 'DESC');
     } else if (orderBy === 'followers') {
       qb.orderBy('followers', 'DESC');
+    } else if (orderBy === 'featured') {
+      qb.orderBy('fu.order', 'ASC');
     } else {
       qb.orderBy('t.amount', 'DESC', 'NULLS LAST');
     }
 
+    const pageSize = size <= 50 ? size : PAGINATION;
+
     const { entities, raw } = await qb
-      .take(PAGINATION)
-      .skip((currentPage - 1) * PAGINATION)
+      .take(pageSize)
+      .skip((currentPage - 1) * pageSize)
       .getRawAndEntities();
 
     return {

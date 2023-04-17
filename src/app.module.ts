@@ -27,6 +27,7 @@ import { IndexerModule } from './indexer/indexer.module';
 import { BulkMintModule } from './bulk-mint/bulk-mint.module';
 import { QueueModule } from './queue/queue.module';
 import { AuthMiddleware } from './auth/auth.middleware';
+import { AdminModule } from './admin/admin.module';
 
 @Module({
   imports: [
@@ -58,6 +59,7 @@ import { AuthMiddleware } from './auth/auth.middleware';
       },
     }),
     QueueModule,
+    AdminModule,
   ],
   controllers: [AppController],
   providers: [AppService, CronService, FixService, RewardsService],

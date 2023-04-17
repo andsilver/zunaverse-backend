@@ -65,9 +65,6 @@ export class User extends PrimaryEntity {
   verified = false;
 
   @Column({ type: 'boolean', default: false })
-  featured = false;
-
-  @Column({ type: 'boolean', default: false })
   admin = false;
 
   @BeforeInsert()

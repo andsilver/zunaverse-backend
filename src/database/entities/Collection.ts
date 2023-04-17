@@ -63,14 +63,8 @@ export class Collection extends PrimaryEntity {
   @Column({ type: 'json', default: {} })
   properties: { [key: string]: string[] };
 
-  @Column({ default: false })
-  featured: boolean;
-
   @Column({ nullable: true })
   category: NftCategory;
-
-  @Column({ default: 0 })
-  order: number;
 
   postImages: string[] = [];
   shortLink: ShortLink;

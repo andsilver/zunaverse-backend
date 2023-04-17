@@ -24,6 +24,8 @@ import { UserSellAmountView } from './database/views/UserSellAmount';
 import { CurrentUser } from './shared/decorators/current-user.decorator';
 import { fromWei } from './shared/utils/currency';
 import { FavCollection } from './database/entities/FavCollection';
+import { FeaturedUser } from './database/entities/FeaturedUser';
+import { FeaturedCollection } from './database/entities/FeaturedCollection';
 
 @Controller()
 export class AppController {
@@ -53,9 +55,9 @@ export class AppController {
       .orderBy('favorites', 'DESC')
       .limit(20);
 
-    const [featuredUsers, collections, nfts] = await Promise.all([
-      User.createQueryBuilder('u')
-        .where('u.avatar IS NOT NULL')
+    const [featuredUsers, featuredCollections, nfts] = await Promise.all([
+      FeaturedUser.createQueryBuilder('fu')
+        .innerJoinAndMapOne('fu.user', User, 'u', 'u.id = fu.userId')
         .leftJoinAndMapOne(
           'u.sold',
           UserSellAmountView,
@@ -90,17 +92,18 @@ export class AppController {
             : ('0' as any),
           'following',
         )
-        .orderBy('u.featured', 'DESC')
-        .limit(20)
+        .orderBy('fu.order', 'ASC')
         .getRawAndEntities(),
-      Collection.find({
-        where: {
-          featured: true,
-        },
-        order: { order: 'ASC', createdAt: 'ASC' },
-        relations: ['owner'],
-        take: 20,
-      }),
+      FeaturedCollection.createQueryBuilder('fc')
+        .innerJoinAndMapOne(
+          'fc.collection',
+          Collection,
+          'c',
+          'fc.collectionId = c.id',
+        )
+        .innerJoinAndMapOne('c.owner', User, 'u', 'u.id = c.ownerId')
+        .orderBy('fc.order', 'ASC')
+        .getMany(),
       user
         ? nftFilterQb
             .addSelect(
@@ -119,6 +122,7 @@ export class AppController {
             .getRawAndEntities()
         : nftFilterQb.getRawAndEntities(),
     ]);
+    const collections = featuredCollections.map((fc) => fc.collection);
 
     if (user) {
       const favorited = await FavCollection.findOneBy({
@@ -130,7 +134,7 @@ export class AppController {
 
     return {
       featuredUsers: featuredUsers.entities.map((u, index) => ({
-        ...u,
+        ...u.user,
         followers: +featuredUsers.raw[index].followers,
         following: Boolean(+featuredUsers.raw[index].following),
         creates: +featuredUsers.raw[index].creates,

@@ -28,6 +28,8 @@ import { UserCategoryView } from './views/UserCategory';
 import { UserCurrencyView } from './views/UserCurrency';
 import { UserSellAmountView } from './views/UserSellAmount';
 import { Showcase } from './entities/Showcase';
+import { FeaturedUser } from './entities/FeaturedUser';
+import { FeaturedCollection } from './entities/FeaturedCollection';
 
 @Module({
   imports: [
@@ -72,6 +74,8 @@ import { Showcase } from './entities/Showcase';
         UserCurrencyView,
         UserSellAmountView,
         Showcase,
+        FeaturedUser,
+        FeaturedCollection,
       ],
       synchronize: true,
     }),
