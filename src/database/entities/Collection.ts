@@ -19,6 +19,9 @@ export class Collection extends PrimaryEntity {
   image: string;
 
   @Column({ nullable: true })
+  featuredImage: string;
+
+  @Column({ nullable: true })
   banner: string;
 
   @Column({ nullable: true })

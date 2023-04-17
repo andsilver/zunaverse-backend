@@ -61,6 +61,12 @@ export class CollectionController {
         200,
       );
       body.image = secure_url;
+
+      const { secure_url: featuredImage } = await uploadImageCloudinary(
+        image[0].path,
+        700,
+      );
+      body.featuredImage = featuredImage;
     }
 
     if (banner) {
@@ -112,6 +118,12 @@ export class CollectionController {
     if (image) {
       const { secure_url } = await uploadImageCloudinary(image[0].path, 200);
       collection.image = secure_url;
+
+      const { secure_url: featuredImage } = await uploadImageCloudinary(
+        image[0].path,
+        700,
+      );
+      collection.featuredImage = featuredImage;
     }
 
     if (banner) {
