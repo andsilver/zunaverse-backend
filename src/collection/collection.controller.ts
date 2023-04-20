@@ -200,7 +200,6 @@ export class CollectionController {
     const {
       page,
       owner,
-      orderBy,
       category,
       search,
       currency,
@@ -208,6 +207,8 @@ export class CollectionController {
       featuredOnly,
       featured,
     } = query;
+
+    const orderBy = query.orderBy || 'popular';
 
     const qb = Collection.createQueryBuilder('c').innerJoinAndMapOne(
       'c.owner',

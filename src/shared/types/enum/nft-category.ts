@@ -2,7 +2,7 @@ export enum NftCategory {
   Community = 'Community',
   Art = 'Art',
   Animation = 'Animation',
-  Games = 'Games',
+  Gaming = 'Gaming',
   Music = 'Music',
   Videos = 'Videos',
   Memes = 'Memes',

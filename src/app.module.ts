@@ -28,6 +28,8 @@ import { BulkMintModule } from './bulk-mint/bulk-mint.module';
 import { QueueModule } from './queue/queue.module';
 import { AuthMiddleware } from './auth/auth.middleware';
 import { AdminModule } from './admin/admin.module';
+import { BlogModule } from './blog/blog.module';
+import { FileUploadModule } from './file-upload/file-upload.module';
 
 @Module({
   imports: [
@@ -60,6 +62,8 @@ import { AdminModule } from './admin/admin.module';
     }),
     QueueModule,
     AdminModule,
+    BlogModule,
+    FileUploadModule,
   ],
   controllers: [AppController],
   providers: [AppService, CronService, FixService, RewardsService],

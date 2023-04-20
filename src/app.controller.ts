@@ -143,7 +143,7 @@ export class AppController {
       popularNfts: nfts.entities.map((n, index) => ({
         ...n,
         favorites: +nfts.raw[index].favorites,
-        favorited: !!nfts.raw[index].favorited,
+        favorited: +nfts.raw[index].favorited,
       })),
     };
   }

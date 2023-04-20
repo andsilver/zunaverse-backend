@@ -29,6 +29,9 @@ export class AuthController {
     const user = await User.findOne({
       where: { pubKey: fields.address.toLowerCase() },
       select: ['id', 'nonce'],
+      relations: {
+        permission: true,
+      },
     });
 
     if (nonce !== user.nonce) {

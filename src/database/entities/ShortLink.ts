@@ -17,6 +17,9 @@ export class ShortLink extends BaseEntity {
   @Column({ nullable: true })
   collectionId: number;
 
+  @Column({ nullable: true })
+  blogId: number;
+
   static async findOrCreate(tokenAddress: string, tokenId: string) {
     let shortlink = await ShortLink.findOneBy({
       tokenAddress,

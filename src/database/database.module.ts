@@ -30,6 +30,9 @@ import { UserSellAmountView } from './views/UserSellAmount';
 import { Showcase } from './entities/Showcase';
 import { FeaturedUser } from './entities/FeaturedUser';
 import { FeaturedCollection } from './entities/FeaturedCollection';
+import { UserPermission } from './entities/UserPermission';
+import { Blog } from './entities/Blog';
+import { FeaturedBlog } from './entities/FeaturedBlog';
 
 @Module({
   imports: [
@@ -76,6 +79,9 @@ import { FeaturedCollection } from './entities/FeaturedCollection';
         Showcase,
         FeaturedUser,
         FeaturedCollection,
+        UserPermission,
+        Blog,
+        FeaturedBlog,
       ],
       synchronize: true,
     }),

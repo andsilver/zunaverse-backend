@@ -27,7 +27,10 @@ export class AuthMiddleware implements NestMiddleware {
             this.logger.error(err);
             return next();
           }
-          User.findOneBy({ id: decoded.payload.userId })
+          User.findOne({
+            where: { id: decoded.payload.userId },
+            relations: ['permission'],
+          })
             .then((user) => {
               req.user = user;
             })

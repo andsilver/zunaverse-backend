@@ -4,7 +4,7 @@ import axios from 'axios';
 import { randomUUID } from 'crypto';
 import { readFileSync, writeFileSync } from 'fs';
 import Moralis from 'moralis';
-import { IsNull, LessThan, Not } from 'typeorm';
+import { In, IsNull, LessThan, Not } from 'typeorm';
 import Web3 from 'web3';
 import { ACTIVITY_EVENTS, BURN_ADDRESSES } from './consts';
 import { Activity } from './database/entities/Activity';
@@ -21,6 +21,9 @@ import { Transaction } from './database/entities/Transaction';
 import { User } from './database/entities/User';
 import { CloudinaryService } from './shared/services/cloudinary.service';
 import { StreamService } from './stream/stream.service';
+import { NftCategory } from './shared/types';
+import { UserPermission } from './database/entities/UserPermission';
+import { Blog } from './database/entities/Blog';
 
 @Injectable()
 export class FixService {
@@ -30,7 +33,41 @@ export class FixService {
   ) {}
 
   async fix() {
-    await this.addHighestBid();
+    await this.updateUserPermission();
+    // await this.addShortLinks();
+  }
+
+  async addShortLinks() {
+    const blogs = await Blog.find();
+
+    for (const blog of blogs) {
+      await ShortLink.create({
+        id: randomUUID(),
+        blogId: blog.id,
+      }).save();
+    }
+  }
+
+  async updateUserPermission() {
+    const admins = await User.find({ where: { id: In([6, 1]) } });
+
+    for (const admin of admins) {
+      admin.permission = UserPermission.create({
+        admin: true,
+      });
+      await admin.permission.save();
+      await admin.save();
+    }
+  }
+
+  async fixMetaversesCategory() {
+    console.log(await Nft.findBy({ category: 'Metaverses' as any }));
+    await Nft.update(
+      { category: 'Metaverses' as any },
+      {
+        category: NftCategory.Metaverse,
+      },
+    );
   }
 
   async fixTransactions() {
