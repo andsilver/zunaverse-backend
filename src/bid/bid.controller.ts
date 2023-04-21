@@ -45,6 +45,8 @@ export class BidController {
     activity.tokenId = bid.tokenId;
     activity.tokenAddress = bid.tokenAddress;
     activity.collectionId = nft.id;
+
+    await nft.setHighestBidId();
     await activity.save();
   }
 }

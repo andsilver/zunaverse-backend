@@ -22,6 +22,17 @@ import { StreamEvent } from './entities/StreamEvent';
 import { TempNft } from './entities/TempNft';
 import { BulkMintRequest } from './entities/BulkMintRequest';
 import { SearchView } from './views/Search';
+import { FavCollection } from './entities/FavCollection';
+import { CollectionCurrencyView } from './views/CollectionCurrency';
+import { UserCategoryView } from './views/UserCategory';
+import { UserCurrencyView } from './views/UserCurrency';
+import { UserSellAmountView } from './views/UserSellAmount';
+import { Showcase } from './entities/Showcase';
+import { FeaturedUser } from './entities/FeaturedUser';
+import { FeaturedCollection } from './entities/FeaturedCollection';
+import { UserPermission } from './entities/UserPermission';
+import { Blog } from './entities/Blog';
+import { FeaturedBlog } from './entities/FeaturedBlog';
 
 @Module({
   imports: [
@@ -60,6 +71,17 @@ import { SearchView } from './views/Search';
         TempNft,
         BulkMintRequest,
         SearchView,
+        FavCollection,
+        CollectionCurrencyView,
+        UserCategoryView,
+        UserCurrencyView,
+        UserSellAmountView,
+        Showcase,
+        FeaturedUser,
+        FeaturedCollection,
+        UserPermission,
+        Blog,
+        FeaturedBlog,
       ],
       synchronize: true,
     }),

@@ -18,6 +18,7 @@ import { addNftAddressToStream, getChainId } from 'src/shared/utils/moralis';
 import { convertIpfsIntoReadable } from 'src/shared/utils/helper';
 import { pinata } from 'src/shared/utils/pinata';
 import { NftCategory } from 'src/shared/types';
+import { Currency } from './Currency';
 
 @Entity('Nfts')
 @Index(['tokenId', 'tokenAddress'])
@@ -84,6 +85,9 @@ export class Nft extends PrimaryEntity {
 
   @Column({ nullable: true, default: 0 })
   rewardsMonths: number;
+
+  @Column({ nullable: true })
+  highestBidId: number;
 
   favorited: boolean;
   favorites: number;
@@ -307,6 +311,22 @@ export class Nft extends PrimaryEntity {
     nft.ownerId = owner.id;
 
     return await nft.save();
+  }
+
+  async setHighestBidId() {
+    const bid = await Bid.createQueryBuilder('b')
+      .where(
+        'b.tokenAddress = :tokenAddress AND b.tokenId = :tokenId',
+        this.tokenIdentity,
+      )
+      .innerJoin(Currency, 'c', 'c.address = b.currency')
+      .addSelect('COALESCE(c.usd * CAST(b.amount AS DECIMAL), 0)', 'price')
+      .orderBy('price', 'DESC')
+      .getOne();
+
+    this.highestBidId = bid ? bid.id : null;
+
+    await this.save();
   }
 
   @BeforeInsert()

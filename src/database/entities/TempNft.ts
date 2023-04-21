@@ -129,7 +129,7 @@ export class TempNft extends PrimaryEntity {
     await this.save();
   }
 
-  async saveAsNft(minted = false, remove = false) {
+  async saveAsNft(minted = false, removeAfterCreate = false) {
     if (!this.tokenUri) {
       throw new Error('Nft has not been processed yet');
     }
@@ -154,7 +154,7 @@ export class TempNft extends PrimaryEntity {
     await nft.save();
     unlinkSync(this.filePath);
 
-    if (remove) {
+    if (removeAfterCreate) {
       await this.remove();
     }
     return nft;

@@ -25,6 +25,7 @@ import { AuthGuard } from 'src/shared/guards/auth.guard';
 import { eventManager } from 'src/shared/utils/contract-events';
 import { IndexDto, UploadNftDto } from './bulk-mint.dto';
 import { BulkMintService } from './bulk-mint.service';
+import { Collection } from 'src/database/entities/Collection';
 
 @Controller('bulk-mint')
 export class BulkMintController {
@@ -49,6 +50,17 @@ export class BulkMintController {
     req.uploadedNfts = tempNfts.length;
 
     return { req, tempNfts };
+  }
+
+  @Get(':id/collection')
+  @UseGuards(AuthGuard)
+  async getBulkMintCollection(@Param('id') id: string) {
+    const req = await BulkMintRequest.findOneBy({ id: +id });
+
+    if (!req) {
+      throw new UnprocessableEntityException('No request found');
+    }
+    return await Collection.findOneBy({ id: req.collectionId });
   }
 
   @Post(':id/index/mint')

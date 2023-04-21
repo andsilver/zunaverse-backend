@@ -1,5 +1,6 @@
 import { Controller, Get, Param, Res } from '@nestjs/common';
 import { Response } from 'express';
+import { Blog } from 'src/database/entities/Blog';
 import { Collection } from 'src/database/entities/Collection';
 import { Nft } from 'src/database/entities/Nft';
 import { ShortLink } from 'src/database/entities/ShortLink';
@@ -13,9 +14,12 @@ export class ShareLinkController {
     if (!shortLink) {
       return res.redirect('https://zunaverse.io');
     }
-    const { tokenAddress, tokenId, collectionId } = shortLink;
+    const { tokenAddress, tokenId, collectionId, blogId } = shortLink;
 
-    let title, description, url, image;
+    let title = '',
+      description = '',
+      url = '',
+      image = '';
 
     if (collectionId) {
       const collection = await Collection.findOneBy({ id: collectionId });
@@ -27,6 +31,16 @@ export class ShareLinkController {
       description = collection.description;
       url = `https://zunaverse.io/collections/${collection.id}`;
       image = collection.image;
+    } else if (blogId) {
+      const blog = await Blog.findOneBy({ id: collectionId });
+
+      if (!blog) {
+        return res.redirect('https://zunaverse.io');
+      }
+      title = blog.title;
+      // description = collection.description;
+      url = `https://zunaverse.io/blog/${blog.id}`;
+      image = blog.postImage;
     } else {
       const nft =
         (await Nft.findOneBy({ tokenId, tokenAddress })) ||

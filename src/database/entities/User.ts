@@ -7,10 +7,13 @@ import {
   OneToMany,
   BeforeInsert,
   BeforeUpdate,
+  OneToOne,
+  JoinColumn,
 } from 'typeorm';
 import Web3 from 'web3';
 import { Collection } from './Collection';
 import { PrimaryEntity } from './primary-entity';
+import { UserPermission } from './UserPermission';
 
 @Entity('Users')
 export class User extends PrimaryEntity {
@@ -58,17 +61,15 @@ export class User extends PrimaryEntity {
   @Column({ nullable: true, select: false })
   nonce: string;
 
+  @OneToOne(() => UserPermission, { cascade: true })
+  @JoinColumn()
+  permission: UserPermission;
+
   @OneToMany(() => Collection, (collection) => collection.owner)
   collections: Collection[];
 
   @Column({ type: 'boolean', default: false })
   verified = false;
-
-  @Column({ type: 'boolean', default: false })
-  featured = false;
-
-  @Column({ type: 'boolean', default: false })
-  admin = false;
 
   @BeforeInsert()
   @BeforeUpdate()
@@ -83,6 +84,10 @@ export class User extends PrimaryEntity {
   followings = 0;
   following = false;
   reported = false;
+  createdItems = 0;
+  collectedItems = 0;
+  onSaleItems = 0;
+  likedItems = 0;
 
   static findByPubKey(pubKey: string) {
     if (!pubKey) {
@@ -108,6 +113,7 @@ export class User extends PrimaryEntity {
     }
     user = User.create({
       pubKey,
+      permission: new UserPermission(),
     });
     await user.save();
     return user;
