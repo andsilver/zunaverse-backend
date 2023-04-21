@@ -77,13 +77,13 @@ export class BlogController {
       qb.orderBy('b.updatedAt', order || 'DESC');
     }
 
-    const pageSize = size <= 50 ? size : PAGINATION;
+    const pageSize = +size <= 50 ? +size : PAGINATION;
     const currentPage = +(page || 1);
 
     const total = await qb.getCount();
 
     const data = await qb
-      .take(PAGINATION)
+      .take(pageSize)
       .skip((currentPage - 1) * pageSize)
       .getMany();
 
