@@ -32,7 +32,7 @@ export class ShareLinkController {
       url = `https://zunaverse.io/collections/${collection.id}`;
       image = collection.image;
     } else if (blogId) {
-      const blog = await Blog.findOneBy({ id: collectionId });
+      const blog = await Blog.findOneBy({ id: blogId });
 
       if (!blog) {
         return res.redirect('https://zunaverse.io');
