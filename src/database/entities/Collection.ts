@@ -118,4 +118,15 @@ export class Collection extends PrimaryEntity {
     });
     this.postImages = nfts.map((nft) => nft.thumbnail);
   }
+
+  async saveShortLink() {
+    let shortLink = await ShortLink.findOneBy({ collectionId: this.id });
+
+    if (!shortLink) {
+      shortLink = ShortLink.create({
+        collectionId: this.id,
+      });
+    }
+    await shortLink.saveWithId(this.name);
+  }
 }

@@ -19,6 +19,7 @@ import { convertIpfsIntoReadable } from 'src/shared/utils/helper';
 import { pinata } from 'src/shared/utils/pinata';
 import { NftCategory } from 'src/shared/types';
 import { Currency } from './Currency';
+import { ShortLink } from './ShortLink';
 
 @Entity('Nfts')
 @Index(['tokenId', 'tokenAddress'])
@@ -120,22 +121,6 @@ export class Nft extends PrimaryEntity {
         pinata.unpin(this.image.replace('ipfs://', '')),
         pinata.unpin(this.tokenUri.replace('ipfs://', '')),
       ]);
-    }
-  }
-
-  @BeforeInsert()
-  fixTokenId() {
-    if (this.tokenAddress !== process.env.MEDIA_CONTRACT.toLowerCase()) {
-      return;
-    }
-    let endZero = 0;
-
-    while (this.tokenId[endZero] === '0') {
-      endZero += 1;
-    }
-
-    if (endZero !== 0) {
-      this.tokenId = this.tokenId.slice(endZero);
     }
   }
 
@@ -330,11 +315,39 @@ export class Nft extends PrimaryEntity {
   }
 
   @BeforeInsert()
+  async beforeInsert() {
+    this.fixTokenId();
+    await this.addTokenAddressToStream();
+    await this.saveShortLink();
+  }
+
+  fixTokenId() {
+    if (this.tokenAddress !== process.env.MEDIA_CONTRACT.toLowerCase()) {
+      return;
+    }
+    let endZero = 0;
+
+    while (this.tokenId[endZero] === '0') {
+      endZero += 1;
+    }
+
+    if (endZero !== 0) {
+      this.tokenId = this.tokenId.slice(endZero);
+    }
+  }
+
   async addTokenAddressToStream() {
     if (this.isZunaNft) {
       return;
     }
     await addNftAddressToStream(this.tokenAddress);
+  }
+
+  async saveShortLink() {
+    const shortLink = ShortLink.create({
+      ...this.tokenIdentity,
+    });
+    await shortLink.saveWithId(this.name);
   }
 
   get isZunaNft() {

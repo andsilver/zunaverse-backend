@@ -33,18 +33,29 @@ export class FixService {
   ) {}
 
   async fix() {
-    await this.updateUserPermission();
-    // await this.addShortLinks();
+    // await this.updateUserPermission();
+    await this.addShortLinks();
   }
 
   async addShortLinks() {
+    await ShortLink.delete({});
+
     const blogs = await Blog.find();
 
     for (const blog of blogs) {
-      await ShortLink.create({
-        id: randomUUID(),
-        blogId: blog.id,
-      }).save();
+      await blog.saveShortLink();
+    }
+
+    const nfts = await Nft.find();
+
+    for (const nft of nfts) {
+      await nft.saveShortLink();
+    }
+
+    const collections = await Collection.find();
+
+    for (const c of collections) {
+      await c.saveShortLink();
     }
   }
 

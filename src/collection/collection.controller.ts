@@ -16,7 +16,6 @@ import {
 import { readFileSync } from 'fs';
 import { FileFieldsInterceptor } from '@nestjs/platform-express';
 import { In } from 'typeorm';
-import { randomUUID } from 'crypto';
 import { Response } from 'express';
 import { join } from 'path';
 
@@ -76,14 +75,12 @@ export class CollectionController {
       body.banner = secure_url;
     }
 
-    const collection = Collection.create(body);
+    const collection = Collection.create({
+      ...body,
+    });
     collection.owner = user;
     await collection.save();
-
-    await ShortLink.create({
-      id: randomUUID(),
-      collectionId: collection.id,
-    }).save();
+    await collection.saveShortLink();
 
     return collection;
   }
@@ -141,6 +138,7 @@ export class CollectionController {
     instagram && (collection.instagram = instagram);
 
     await collection.save();
+    await collection.saveShortLink();
 
     return { success: true };
   }

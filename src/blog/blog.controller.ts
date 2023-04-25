@@ -14,7 +14,6 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { randomUUID } from 'crypto';
 import { PAGINATION } from 'src/consts';
 import { Blog } from 'src/database/entities/Blog';
 import { FeaturedBlog } from 'src/database/entities/FeaturedBlog';
@@ -128,11 +127,7 @@ export class BlogController {
       ...images,
     });
     await blog.save();
-
-    await ShortLink.create({
-      id: randomUUID(),
-      blogId: blog.id,
-    }).save();
+    await blog.saveShortLink();
 
     return blog;
   }
@@ -161,8 +156,10 @@ export class BlogController {
       };
     }
     Object.assign(blog, body);
+    await blog.save();
+    await blog.saveShortLink();
 
-    return await blog.save();
+    return blog;
   }
 
   @Delete(':id')

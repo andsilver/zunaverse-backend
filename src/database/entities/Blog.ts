@@ -1,5 +1,6 @@
 import { Column, Entity } from 'typeorm';
 import { PrimaryEntity } from './primary-entity';
+import { ShortLink } from './ShortLink';
 
 @Entity('Blogs')
 export class Blog extends PrimaryEntity {
@@ -31,6 +32,17 @@ export class Blog extends PrimaryEntity {
 
   @Column()
   thumbnail: string;
+
+  async saveShortLink() {
+    let shortLink = await ShortLink.findOneBy({ blogId: this.id });
+
+    if (!shortLink) {
+      shortLink = ShortLink.create({
+        blogId: this.id,
+      });
+    }
+    await shortLink.saveWithId(this.title);
+  }
 
   shortLinkId?: string;
 }

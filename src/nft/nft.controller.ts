@@ -417,6 +417,12 @@ export class NftController {
           'c',
           'c.id = Nfts.collectionId',
         )
+        .innerJoinAndMapOne(
+          'Nfts.shortLink',
+          ShortLink,
+          'sl',
+          'sl.tokenAddress = Nfts.tokenAddress AND sl.tokenId = Nfts.tokenId',
+        )
         .getOne()) || (await Nft.getNftFromMoralis(tokenAddress, tokenId));
 
     if (!nft) {
@@ -739,10 +745,19 @@ export class NftController {
   ) {
     tokenAddress = tokenAddress.toLowerCase();
 
-    const shortLink = await ShortLink.findOrCreate(
-      tokenAddress.toLowerCase(),
+    const nft = await Nft.findOneBy({
+      tokenAddress,
       tokenId,
-    );
+    });
+
+    if (!nft) {
+      throw new UnprocessableEntityException('Nft not found');
+    }
+    const shortLink = await ShortLink.findOneBy({ tokenAddress, tokenId });
+
+    if (!shortLink) {
+      return await nft.saveShortLink();
+    }
     return shortLink;
   }
 

@@ -1,9 +1,11 @@
-import { UnprocessableEntityException } from '@nestjs/common';
-import { randomUUID } from 'crypto';
-import { BaseEntity, Column, Entity, PrimaryColumn } from 'typeorm';
-import { Nft } from './Nft';
+import { BaseEntity, Column, Entity, Index, PrimaryColumn } from 'typeorm';
+import _ from 'lodash';
 
 @Entity('ShortLinks')
+@Index(['tokenAddress', 'tokenId'], {
+  unique: true,
+  spatial: false,
+})
 export class ShortLink extends BaseEntity {
   @PrimaryColumn()
   id: string;
@@ -20,29 +22,24 @@ export class ShortLink extends BaseEntity {
   @Column({ nullable: true })
   blogId: number;
 
-  static async findOrCreate(tokenAddress: string, tokenId: string) {
-    let shortlink = await ShortLink.findOneBy({
-      tokenAddress,
-      tokenId,
-    });
+  async saveWithId(name: string) {
+    const id = _.kebabCase(name).split('-').slice(0, 15).join('-');
 
-    if (!shortlink) {
-      const nft =
-        (await Nft.findOneBy({
-          tokenAddress,
-          tokenId,
-        })) || (await Nft.getNftFromMoralis(tokenAddress, tokenId));
-
-      if (!nft) {
-        throw new UnprocessableEntityException('The nft does not exist');
-      }
-
-      shortlink = await ShortLink.create({
-        id: randomUUID(),
-        tokenAddress,
-        tokenId,
-      }).save();
+    if (id === this.id) {
+      return;
     }
-    return shortlink;
+    let existing = await ShortLink.findOneBy({ id });
+    let tempId = id;
+
+    while (existing) {
+      tempId = id + '-' + Math.random().toString(36).slice(7);
+      existing = await ShortLink.findOneBy({ id: tempId });
+    }
+
+    if (this.id) {
+      await this.remove();
+    }
+    this.id = tempId;
+    return await this.save();
   }
 }
