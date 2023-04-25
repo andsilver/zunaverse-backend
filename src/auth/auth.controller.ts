@@ -97,8 +97,6 @@ export class AuthController {
           message: 'User not found',
         });
       }
-      // const msg = `${process.env.AUTH_SIGN_MESSAGE}: ${user.nonce}`;
-      // const msgBufferHex = bufferToHex(Buffer.from(msg, 'utf8'));
       const address = recoverTypedSignature_v4({
         data: {
           domain: {
@@ -124,17 +122,12 @@ export class AuthController {
         } as any,
         sig: signature,
       });
-      // recoverPersonalSignature({
-      //   data: msgBufferHex,
-      //   sig: signature,
-      // });
 
       if (address.toLowerCase() !== pubKey.toLowerCase()) {
         throw new UnauthorizedException({
           message: 'Signature verification failed',
         });
       }
-      // user.nonce = Math.floor(Math.random() * 10000);
       await user.save();
 
       const accessToken = jwt.sign(

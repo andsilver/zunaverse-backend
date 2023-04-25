@@ -3,6 +3,7 @@ import {
   Body,
   Controller,
   Delete,
+  ForbiddenException,
   Get,
   Param,
   Patch,
@@ -98,8 +99,10 @@ export class BlogController {
     const shortLink = await ShortLink.findOneBy({ blogId: blog.id });
     blog.shortLinkId = shortLink.id;
 
-    if (blog.isDraft && !user.permission.admin && !user.permission.writer) {
-      throw new UnprocessableEntityException('Blog not found');
+    if (blog.isDraft) {
+      if (!user || (!user.permission.admin && !user.permission.writer)) {
+        throw new UnprocessableEntityException('Blog not found');
+      }
     }
     return blog;
   }
@@ -139,6 +142,7 @@ export class BlogController {
     @Param('id') id: string,
     @Body() body: any,
     @UploadedFile() file: Express.Multer.File,
+    @CurrentUser() user: User,
   ) {
     const blog = await Blog.findOneBy({
       id: +id,
@@ -146,6 +150,10 @@ export class BlogController {
 
     if (!blog) {
       throw new UnprocessableEntityException('Blog not found');
+    }
+
+    if (!blog.isDraft && !user.permission.admin) {
+      throw new ForbiddenException('Not allowed');
     }
 
     if (file?.path) {
@@ -164,7 +172,17 @@ export class BlogController {
 
   @Delete(':id')
   @UseGuards(WritterAuthGuard)
-  async remove(@Param('id') id: string) {
+  async remove(@Param('id') id: string, @CurrentUser() user: User) {
+    const blog = await Blog.findOneBy({ id: +id });
+
+    if (!blog) {
+      await ShortLink.delete({ blogId: +id });
+      return { success: true };
+    }
+
+    if (!blog.isDraft && !user.permission.admin) {
+      throw new ForbiddenException('Not allowed');
+    }
     await Blog.delete(+id);
     await ShortLink.delete({ blogId: +id });
 

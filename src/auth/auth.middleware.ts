@@ -29,7 +29,9 @@ export class AuthMiddleware implements NestMiddleware {
           }
           User.findOne({
             where: { id: decoded.payload.userId },
-            relations: ['permission'],
+            relations: {
+              permission: true,
+            },
           })
             .then((user) => {
               req.user = user;
