@@ -33,6 +33,7 @@ import { FeaturedCollection } from './entities/FeaturedCollection';
 import { UserPermission } from './entities/UserPermission';
 import { Blog } from './entities/Blog';
 import { FeaturedBlog } from './entities/FeaturedBlog';
+import { Resource } from './entities/Resource';
 
 @Module({
   imports: [
@@ -82,6 +83,7 @@ import { FeaturedBlog } from './entities/FeaturedBlog';
         UserPermission,
         Blog,
         FeaturedBlog,
+        Resource,
       ],
       synchronize: true,
     }),

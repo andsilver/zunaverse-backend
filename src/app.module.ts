@@ -30,6 +30,7 @@ import { AuthMiddleware } from './auth/auth.middleware';
 import { AdminModule } from './admin/admin.module';
 import { BlogModule } from './blog/blog.module';
 import { FileUploadModule } from './file-upload/file-upload.module';
+import { ResourceModule } from './resource/resource.module';
 
 @Module({
   imports: [
@@ -63,6 +64,7 @@ import { FileUploadModule } from './file-upload/file-upload.module';
     QueueModule,
     AdminModule,
     BlogModule,
+    ResourceModule,
     FileUploadModule,
   ],
   controllers: [AppController],
