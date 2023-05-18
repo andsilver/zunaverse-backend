@@ -1,4 +1,5 @@
 import { PAGINATION } from 'src/consts';
+import { Nft } from 'src/database/entities/Nft';
 
 export const convertIpfsIntoReadable = (url: string, tokenAddress: string) => {
   if (!url) {
@@ -26,4 +27,17 @@ export const buildPagination = (
     page,
     size,
   };
+};
+
+export const checkRevealDate = (nft: Nft) => {
+  if (!nft) {
+    return null;
+  }
+
+  if (nft.revealDate && nft.revealDate > Date.now().toString()) {
+    delete nft.image;
+    delete nft.tokenUri;
+    delete nft.thumbnail;
+  }
+  return nft;
 };

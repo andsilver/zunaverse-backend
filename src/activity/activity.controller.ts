@@ -3,7 +3,7 @@ import { ACTIVITY_EVENTS, PAGINATION } from 'src/consts';
 import { Activity } from 'src/database/entities/Activity';
 import { Nft } from 'src/database/entities/Nft';
 import { User } from 'src/database/entities/User';
-import { buildPagination } from 'src/shared/utils/helper';
+import { buildPagination, checkRevealDate } from 'src/shared/utils/helper';
 
 @Controller('activities')
 export class ActivityController {
@@ -57,6 +57,10 @@ export class ActivityController {
       .skip((currentPage - 1) * pageSize)
       .take(pageSize)
       .getMany();
+
+    data.forEach((d) => {
+      d.nft = checkRevealDate(d.nft);
+    });
 
     return { data, pagination: buildPagination(total, currentPage, pageSize) };
   }

@@ -1,5 +1,6 @@
 import { Column, Entity, Index } from 'typeorm';
 import { PrimaryEntity } from './primary-entity';
+import { Nft } from './Nft';
 
 @Entity('Bids')
 @Index(['tokenId', 'tokenAddress'])
@@ -24,4 +25,6 @@ export class Bid extends PrimaryEntity {
 
   @Column({ default: 0 })
   collectionId: number;
+
+  nft?: Nft;
 }

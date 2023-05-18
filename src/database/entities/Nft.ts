@@ -90,10 +90,16 @@ export class Nft extends PrimaryEntity {
   @Column({ nullable: true })
   highestBidId: number;
 
-  favorited: boolean;
-  favorites: number;
-  collection: Collection;
-  currentAsk: Ask;
+  @Column({ nullable: true })
+  clonedFrom: number;
+
+  @Column({ nullable: true })
+  revealDate: string;
+
+  favorited?: boolean;
+  favorites?: number;
+  collection?: Collection;
+  currentAsk?: Ask;
 
   async burn() {
     await Promise.all([

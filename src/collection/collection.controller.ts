@@ -13,7 +13,7 @@ import {
   UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
-import { readFileSync } from 'fs';
+import { readFileSync, unlinkSync } from 'fs';
 import { FileFieldsInterceptor } from '@nestjs/platform-express';
 import { In } from 'typeorm';
 import { Response } from 'express';
@@ -36,6 +36,7 @@ import { buildPagination } from 'src/shared/utils/helper';
 import { CollectionCurrencyView } from 'src/database/views/CollectionCurrency';
 import { Currency } from 'src/database/entities/Currency';
 import { FeaturedCollection } from 'src/database/entities/FeaturedCollection';
+import { Nft } from 'src/database/entities/Nft';
 
 @Controller('collection')
 export class CollectionController {
@@ -66,6 +67,7 @@ export class CollectionController {
         700,
       );
       body.featuredImage = featuredImage;
+      unlinkSync(image[0].path);
     }
 
     if (banner) {
@@ -73,6 +75,7 @@ export class CollectionController {
         banner[0].path,
       );
       body.banner = secure_url;
+      unlinkSync(banner[0].path);
     }
 
     const collection = Collection.create({
@@ -121,24 +124,26 @@ export class CollectionController {
         700,
       );
       collection.featuredImage = featuredImage;
+      unlinkSync(image[0].path);
     }
 
     if (banner) {
       const { secure_url } = await uploadBannerImageCloudinary(banner[0].path);
       collection.banner = secure_url;
+      unlinkSync(banner[0].path);
     }
 
-    const { name, description, category, twitter, website, instagram } = body;
-
-    name && (collection.name = name);
-    description && (collection.description = description);
-    category && (collection.category = category);
-    twitter && (collection.twitter = twitter);
-    website && (collection.website = website);
-    instagram && (collection.instagram = instagram);
+    Object.assign(collection, body);
 
     await collection.save();
     await collection.saveShortLink();
+
+    if (collection.affiliation?.revealDate) {
+      await Nft.update(
+        { collectionId: collection.id },
+        { revealDate: collection.affiliation.revealDate },
+      );
+    }
 
     return { success: true };
   }

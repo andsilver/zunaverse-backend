@@ -31,7 +31,7 @@ import { AuthGuard } from 'src/shared/guards/auth.guard';
 import { ShortLink } from 'src/database/entities/ShortLink';
 import { CreateNftDto, CreateTempNftDto } from './nft.dto';
 import { TempNft } from 'src/database/entities/TempNft';
-import { buildPagination } from 'src/shared/utils/helper';
+import { buildPagination, checkRevealDate } from 'src/shared/utils/helper';
 import { Showcase } from 'src/database/entities/Showcase';
 import { selectNfts } from 'src/database/query-helper';
 
@@ -269,7 +269,8 @@ export class NftController {
     const data = entities.map((e, index) => {
       e.favorites = +raw[index].favorites;
       e.favorited = !!+raw[index].favorited;
-      return e;
+
+      return checkRevealDate(e);
     });
 
     return { data, pagination: buildPagination(total, currentPage) };
@@ -445,7 +446,7 @@ export class NftController {
 
     nft.image && (nft.image = nft.fixIpfsUrl());
 
-    return nft;
+    return checkRevealDate(nft);
   }
 
   @Get(':tokenAddress/:tokenId/activities')

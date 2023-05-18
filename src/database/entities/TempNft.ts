@@ -6,6 +6,7 @@ import { Nft } from './Nft';
 import { PrimaryEntity } from './primary-entity';
 import { uploadNftImageCloudinary } from 'src/shared/utils/cloudinary';
 import { pinImage, pinMetadata } from 'src/shared/utils/pinata';
+import { Collection } from './Collection';
 
 @Entity('TempNfts')
 export class TempNft extends PrimaryEntity {
@@ -133,6 +134,12 @@ export class TempNft extends PrimaryEntity {
     if (!this.tokenUri) {
       throw new Error('Nft has not been processed yet');
     }
+    let collection: Collection;
+
+    if (this.collectionId) {
+      collection = await Collection.findOneBy({ id: this.collectionId });
+    }
+
     const nft = Nft.create({
       name: this.name,
       description: this.description,
@@ -150,7 +157,9 @@ export class TempNft extends PrimaryEntity {
       royaltyFee: this.royaltyFee,
       onSale: this.onSale,
       signature: this.signature,
+      revealDate: collection?.affiliation?.revealDate || null,
     });
+
     await nft.save();
     unlinkSync(this.filePath);
 

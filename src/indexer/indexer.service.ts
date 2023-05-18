@@ -82,6 +82,19 @@ export class IndexerService implements OnApplicationBootstrap {
         case 'BulkPriceSet':
           await this.stream.handleBulkPriceSet(data.tokenIds);
           break;
+        case 'Cloned': {
+          const { seller, buyer, offer, tokenId } = data;
+
+          await this.stream.handleClone(
+            tokenId,
+            txHash,
+            logIndex,
+            offer,
+            seller.toLowerCase(),
+            buyer.toLowerCase(),
+          );
+          break;
+        }
         case 'OfferAccepted':
         case 'Bought':
           const { seller, buyer, offer, tokenId } = data;

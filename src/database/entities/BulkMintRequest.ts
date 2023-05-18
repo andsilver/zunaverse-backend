@@ -6,6 +6,7 @@ import {
   PrimaryGeneratedColumn,
 } from 'typeorm';
 import { TempNft } from './TempNft';
+import { Collection } from './Collection';
 
 @Entity('BulkMintRequests')
 export class BulkMintRequest extends BaseEntity {
@@ -43,6 +44,7 @@ export class BulkMintRequest extends BaseEntity {
 
   uploadedNfts: number;
   processedNfts: number;
+  collection: Collection;
 
   async removeRequest() {
     await TempNft.delete({ requestId: this.id });

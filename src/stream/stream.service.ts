@@ -26,6 +26,184 @@ import { Showcase } from 'src/database/entities/Showcase';
 export class StreamService {
   logger = new Logger(StreamService.name);
 
+  private async _updateOfferActivity(
+    nft: Nft,
+    activity: Activity,
+    erc20Address: string,
+    amount: string,
+    buyer: string,
+    seller: string,
+    txHash: string,
+    txType: 'accept' | 'buy' | 'clone',
+  ) {
+    const currency = await Currency.findOneBy({
+      address: erc20Address.toLowerCase(),
+    });
+    activity.event = 'Sale';
+    activity.amount = fromWei(Web3.utils.toBN(amount), currency.decimals);
+    activity.currency = erc20Address;
+
+    await activity.save();
+
+    const usd = +currency.usd * +activity.amount;
+
+    const transaction = await Transaction.create({
+      amount: +activity.amount,
+      currency: activity.currency,
+      txHash: activity.txHash,
+      collectionId: nft.collectionId,
+      buyer,
+      seller,
+      usd,
+      ...nft.tokenIdentity,
+    }).save();
+
+    const [sellerUser, buyerUser] = await Promise.all([
+      User.findByPubKey(seller),
+      User.findByPubKey(buyer),
+    ]);
+
+    await Notification.create({
+      user: txType === 'buy' || txType === 'clone' ? sellerUser : buyerUser,
+      text:
+        txType === 'buy'
+          ? 'One of your nfts has been sold.'
+          : txType === 'clone'
+          ? 'Onf of your nfts has been cloned via affiliate link.'
+          : 'One of your offers has been accepted.',
+      metadata: {
+        activityId: activity.id,
+        from: (txType === 'buy' || txType === 'clone'
+          ? buyer
+          : seller
+        ).toLowerCase(),
+        offer: {
+          amount: activity.amount,
+          currency: activity.currency,
+        },
+        txHash,
+      },
+      ...nft.tokenIdentity,
+    }).save();
+
+    await Bid.delete({
+      bidder: (buyer as string).toLowerCase(),
+      ...nft.tokenIdentity,
+    });
+
+    if (nft.collection) {
+      nft.collection.totalVolume += transaction.usd;
+      await nft.collection.save();
+    }
+  }
+
+  async handleClone(
+    tokenId: string,
+    txHash: string,
+    logIndex: number,
+    offer: any,
+    seller: string,
+    buyer: string,
+  ) {
+    this.logger.log(`handleClone: ${tokenId}`);
+
+    const tokenAddress = process.env.MEDIA_CONTRACT.toLowerCase();
+
+    // eslint-disable-next-line prefer-const
+    let [nft, activity] = await Promise.all([
+      Nft.createQueryBuilder('n')
+        .where('n.tokenId = :tokenId AND n.tokenAddress = :tokenAddress', {
+          tokenId,
+          tokenAddress,
+        })
+        .leftJoinAndMapOne('n.owner', User, 'u', 'n.ownerId = u.id')
+        .leftJoinAndMapOne(
+          'n.collection',
+          Collection,
+          'c',
+          'n.collectionId = c.id',
+        )
+        .getOne(),
+      Activity.findOne({
+        where: {
+          txHash,
+          logIndex: logIndex - 1,
+        },
+      }),
+    ]);
+
+    if (!activity) {
+      throw new UnprocessableEntityException(`Transfer activity missing`);
+    }
+
+    const originalNft = await Nft.findOneBy({
+      tokenId: offer.tokenId || offer[offer.length - 5],
+      tokenAddress,
+    });
+
+    if (!nft) {
+      const tempNft = await TempNft.findOneBy({
+        name: 'Clone',
+        tokenId,
+      });
+
+      if (!tempNft) {
+        throw new UnprocessableEntityException(
+          `Nft does not exist for tokenId: ${tokenId}`,
+        );
+      }
+      const collection = await Collection.findOneBy({
+        id: originalNft.collectionId,
+      });
+
+      nft = Nft.create({
+        name: originalNft.name,
+        category: originalNft.category,
+        description: originalNft.description,
+        royaltyFee: originalNft.royaltyFee,
+        properties: originalNft.properties,
+        tokenUri: originalNft.tokenUri,
+        thumbnail: originalNft.thumbnail,
+        collectionId: originalNft.collectionId,
+        onSale: true,
+        image: originalNft.image,
+        owner: await User.findByPubKey(buyer),
+        creatorId: originalNft.creatorId,
+        minted: true,
+        mintedAt: new Date(tempNft.createdAt).getTime().toString(),
+        clonedFrom: originalNft.id,
+        revealDate: `${collection.affiliation.revealDate}`,
+        tokenId,
+        tokenAddress,
+      });
+      await nft.save();
+      nft.collection = await Collection.findOneBy({ id: nft.collectionId });
+
+      await nft.collection.calculateMetrics();
+      await nft.updateCollectionProperty();
+      await tempNft.remove();
+    } else {
+      nft.clonedFrom = originalNft.id;
+      nft.owner = await User.findByPubKey(buyer);
+      nft.creator = originalNft.creator;
+      await nft.save();
+    }
+    const erc20Address = offer.erc20Address || offer[offer.length - 4];
+    const amount = offer.amount || offer[offer.length - 3];
+
+    await this._updateOfferActivity(
+      nft,
+      activity,
+      erc20Address,
+      amount,
+      buyer,
+      seller,
+      activity.txHash,
+      'clone',
+    );
+    this.logger.log(`handleClone Success: ${tokenAddress}: ${tokenId}`);
+  }
+
   async handleOffer(
     tokenId: string,
     tokenAddress: string,
@@ -74,59 +252,16 @@ export class StreamService {
     const erc20Address = offer.erc20Address || offer[offer.length - 4];
     const amount = offer.amount || offer[offer.length - 3];
 
-    const currency = await Currency.findOneBy({
-      address: erc20Address.toLowerCase(),
-    });
-    activity.event = 'Sale';
-    activity.amount = fromWei(Web3.utils.toBN(amount), currency.decimals);
-    activity.currency = erc20Address;
-
-    await activity.save();
-
-    const usd = +currency.usd * +activity.amount;
-
-    const transaction = await Transaction.create({
-      amount: +activity.amount,
-      currency: activity.currency,
-      txHash: activity.txHash,
-      collectionId: nft.collectionId,
+    await this._updateOfferActivity(
+      nft,
+      activity,
+      erc20Address,
+      amount,
       buyer,
       seller,
-      usd,
-      ...nft.tokenIdentity,
-    }).save();
-
-    const [sellerUser, buyerUser] = await Promise.all([
-      User.findByPubKey(seller),
-      User.findByPubKey(buyer),
-    ]);
-
-    await Notification.create({
-      user: buying ? sellerUser : buyerUser,
-      text: buying
-        ? 'One of your nfts has been sold.'
-        : 'One of your offers has been accepted.',
-      metadata: {
-        activityId: activity.id,
-        from: (buying ? buyer : seller).toLowerCase(),
-        offer: {
-          amount: activity.amount,
-          currency: activity.currency,
-        },
-        txHash,
-      },
-      ...nft.tokenIdentity,
-    }).save();
-
-    await Bid.delete({
-      bidder: (buyer as string).toLowerCase(),
-      ...nft.tokenIdentity,
-    });
-
-    if (nft.collection) {
-      nft.collection.totalVolume += transaction.usd;
-      await nft.collection.save();
-    }
+      activity.txHash,
+      buying ? 'buy' : 'accept',
+    );
     this.logger.log(`handleOffer Success: ${tokenAddress}: ${tokenId}`);
   }
 
@@ -261,47 +396,102 @@ export class StreamService {
       }
       const tempNft = await TempNft.findOneBy({ tokenId });
 
+      const web3 = new Web3(
+        new Web3.providers.HttpProvider(process.env.HTTPS_RPC_URL),
+      );
+      const contract = new web3.eth.Contract(MediaAbi as any, tokenAddress);
+
+      // nft was minted by bulk mint
+
       if (tempNft) {
+        // first nft transaction after clone
+        if (tempNft.name === 'Clone') {
+          const tokenInfo = await contract.methods.getTokenInfo(tokenId).call();
+
+          const collectionId = tokenInfo[2];
+          const activity = Activity.create({
+            txHash: transactionHash,
+            logIndex,
+            event: ACTIVITY_EVENTS.TRANSFERS,
+            userAddress: from,
+            receiver: to,
+            createdAt: `${+timestamp * 1000}`,
+            collectionId: +collectionId,
+            tokenId,
+            tokenAddress,
+          });
+          await activity.save();
+
+          this.logger.log(
+            `handleTransfer Success: ${tokenAddress}: ${tokenId}`,
+          );
+          return;
+        }
         nft = await tempNft.saveAsNft(true);
       } else {
-        const web3 = new Web3(
-          new Web3.providers.HttpProvider(process.env.HTTPS_RPC_URL),
-        );
-        const contract = new web3.eth.Contract(MediaAbi as any, tokenAddress);
+        const owner = await User.findOrCreate(to);
 
-        const [tokenUri, collectionId, tokenInfo] = await Promise.all([
+        const [tokenUri, tokenInfo] = await Promise.all([
           contract.methods.tokenURI(tokenId).call(),
-          contract.methods.collectionIds(tokenId).call(),
           contract.methods.getTokenInfo(tokenId).call(),
         ]);
         const royalties = tokenInfo[1];
-        const url = tokenUri.replace('ipfs://', process.env.PINATA_GATE_WAY);
-        const { data: metadata } = await axios.get(url);
-        const { name, description, category, image, properties } = metadata;
+        const collectionId = tokenInfo[2];
 
-        const owner = await User.findOrCreate(to);
+        // not revealed yet
+        if (!tokenUri) {
+          const temp = TempNft.create({
+            name: 'Clone',
+            description: 'Clone',
+            tokenId,
+            royaltyFee: 0,
+            properties: [],
+            userId: owner.id,
+          });
+          await temp.save();
 
-        nft = Nft.create({
-          name,
-          description,
-          category,
-          image,
-          properties,
-          tokenUri,
-          minted: true,
-          owner,
-          creator: owner,
-          onSale: true,
-          tokenId,
-          tokenAddress,
-          collectionId: +collectionId,
-          royaltyFee: +royalties,
-          mintedAt: `${+timestamp * 1000}`,
-        });
-        await nft.resizeNftImage();
-        await nft.save();
+          const activity = Activity.create({
+            txHash: transactionHash,
+            logIndex,
+            event: ACTIVITY_EVENTS.MINT,
+            userAddress: to,
+            createdAt: `${+timestamp * 1000}`,
+            collectionId: +collectionId,
+            tokenId,
+            tokenAddress,
+          });
+          await activity.save();
+
+          this.logger.log(
+            `handleTransfer Success: ${tokenAddress}: ${tokenId}`,
+          );
+          return;
+        } else {
+          const url = tokenUri.replace('ipfs://', process.env.PINATA_GATE_WAY);
+          const { data: metadata } = await axios.get(url);
+          const { name, description, category, image, properties } = metadata;
+
+          nft = Nft.create({
+            name,
+            description,
+            category,
+            image,
+            properties,
+            tokenUri,
+            minted: true,
+            owner,
+            creator: owner,
+            onSale: true,
+            tokenId,
+            tokenAddress,
+            collectionId: +collectionId,
+            royaltyFee: +royalties,
+            mintedAt: `${+timestamp * 1000}`,
+          });
+          await nft.resizeNftImage();
+          await nft.save();
+        }
       }
-
       const activity = Activity.create({
         txHash: transactionHash,
         logIndex,
@@ -319,6 +509,7 @@ export class StreamService {
         await nft.collection.calculateMetrics();
         await nft.updateCollectionProperty();
       }
+
       this.logger.log(`handleTransfer Success: ${tokenAddress}: ${tokenId}`);
       return;
     }

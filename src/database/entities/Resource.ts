@@ -34,6 +34,9 @@ export class Resource extends BaseEntity {
   })
   isDraft: boolean;
 
+  @Column({ default: 1 })
+  order: number;
+
   @CreateDateColumn()
   createdAt: Date;
 

@@ -1,6 +1,7 @@
 import { Column, Entity, Index, ManyToOne } from 'typeorm';
 import { PrimaryEntity } from './primary-entity';
 import { User } from './User';
+import { Nft } from './Nft';
 
 @Entity('Notifications')
 @Index(['tokenId', 'tokenAddress'])
@@ -22,4 +23,6 @@ export class Notification extends PrimaryEntity {
 
   @Column({ type: 'json', nullable: true })
   metadata: any;
+
+  nft?: Nft;
 }

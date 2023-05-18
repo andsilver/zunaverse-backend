@@ -35,6 +35,7 @@ import { RewardDetail } from 'src/database/entities/RewardDetail';
 import { MoralisService } from 'src/shared/services/moralis.service';
 import {
   buildPagination,
+  checkRevealDate,
   convertIpfsIntoReadable,
 } from 'src/shared/utils/helper';
 import { UserCategoryView } from 'src/database/views/UserCategory';
@@ -47,6 +48,7 @@ import moment from 'moment';
 import { Showcase } from 'src/database/entities/Showcase';
 import { selectNfts } from 'src/database/query-helper';
 import { FeaturedUser } from 'src/database/entities/FeaturedUser';
+import { Collection } from 'src/database/entities/Collection';
 
 @Controller('user')
 export class UserController {
@@ -460,6 +462,7 @@ export class UserController {
     const data = entities.map((e, index) => {
       e.nft.favorites = +raw[index].favorites;
       e.nft.favorited = !!+raw[index].favorited;
+      e.nft = checkRevealDate(e.nft);
       return e;
     });
     return data;
@@ -794,6 +797,10 @@ export class UserController {
       .take(PAGINATION)
       .skip((currentPage - 1) * PAGINATION)
       .getMany();
+
+    data.forEach((b) => {
+      b.nft = checkRevealDate(b.nft);
+    });
 
     return {
       data,

@@ -55,4 +55,8 @@ export class CreateTempNftDto {
   @IsBooleanString()
   @IsOptional()
   onSale: string;
+
+  @IsString()
+  @IsOptional()
+  tier: string;
 }

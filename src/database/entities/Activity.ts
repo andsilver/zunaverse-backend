@@ -1,5 +1,6 @@
 import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
 import { LowercaseAddressEntityAbstract } from '../abstracts/LowercaseAddress';
+import { Nft } from './Nft';
 
 @Entity('Activities')
 export class Activity extends LowercaseAddressEntityAbstract {
@@ -38,4 +39,6 @@ export class Activity extends LowercaseAddressEntityAbstract {
 
   @Column()
   createdAt: string;
+
+  nft?: Nft;
 }

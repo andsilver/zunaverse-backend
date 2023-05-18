@@ -5,6 +5,7 @@ import {
   IsEnum,
   IsArray,
   IsNotEmptyObject,
+  IsOptional,
 } from 'class-validator';
 import { NftCategory } from 'src/shared/types';
 import { Block, Log } from '@moralisweb3/streams-typings';
@@ -40,6 +41,10 @@ export class UploadNftDto {
 
   @IsString()
   tokenId: string;
+
+  @IsString()
+  @IsOptional()
+  tier: string;
 }
 
 export class IndexDto {

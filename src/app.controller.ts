@@ -11,7 +11,6 @@ import { ILike, In } from 'typeorm';
 import Web3 from 'web3';
 
 import { Ask } from './database/entities/Ask';
-import { Bid } from './database/entities/Bid';
 import { Collection } from './database/entities/Collection';
 import { Currency } from './database/entities/Currency';
 import { Favorite } from './database/entities/Favorite';
@@ -26,6 +25,7 @@ import { fromWei } from './shared/utils/currency';
 import { FavCollection } from './database/entities/FavCollection';
 import { FeaturedUser } from './database/entities/FeaturedUser';
 import { FeaturedCollection } from './database/entities/FeaturedCollection';
+import { checkRevealDate } from './shared/utils/helper';
 
 @Controller()
 export class AppController {
@@ -124,7 +124,7 @@ export class AppController {
     ]);
     const collections = featuredCollections.map((fc) => fc.collection);
 
-    if (user) {
+    if (user && collections.length) {
       const favorited = await FavCollection.findOneBy({
         userAddress: user.pubKey,
         collectionId: collections[0].id,
@@ -140,11 +140,13 @@ export class AppController {
         creates: +featuredUsers.raw[index].creates,
       })),
       collections,
-      popularNfts: nfts.entities.map((n, index) => ({
-        ...n,
-        favorites: +nfts.raw[index].favorites,
-        favorited: +nfts.raw[index].favorited,
-      })),
+      popularNfts: nfts.entities.map((n, index) =>
+        checkRevealDate({
+          ...n,
+          favorites: +nfts.raw[index].favorites,
+          favorited: !!+nfts.raw[index].favorited,
+        } as any),
+      ),
     };
   }
 
@@ -192,7 +194,7 @@ export class AppController {
       .orderBy('a.updatedAt', 'DESC')
       .getMany();
 
-    return res;
+    return res.map(checkRevealDate);
   }
 
   @Get('top-sellers')

@@ -58,6 +58,13 @@ export class ContractEvents {
         '0x2da2a946c794e9ad7ceda69deeb5e724c5463c3b98df56b021c26e4148457f63',
       address: process.env.MARKET2_CONTRACT,
     },
+    {
+      name: 'Cloned',
+      contract: ContractType.Market,
+      topic:
+        '0xd7b5f66b0de74f30e4dd0954cca4abdd824bc09a4a58abf12012dda912ac41f3',
+      address: process.env.MARKET_CONTRACT,
+    },
   ];
 
   constructor() {

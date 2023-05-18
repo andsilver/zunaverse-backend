@@ -38,10 +38,12 @@ export class BulkMintController {
   @UseGuards(AuthGuard)
   async getBulkMintRequest(@Param('id') id: string) {
     const req = await BulkMintRequest.findOneBy({ id: +id });
+    const collection = await Collection.findOneBy({ id: req.collectionId });
 
-    if (!req) {
+    if (!req || !collection) {
       throw new UnprocessableEntityException('No request found');
     }
+    req.collection = collection;
     const tempNfts = await TempNft.find({
       where: { requestId: req.id },
       order: { id: 'ASC' },
