@@ -75,6 +75,9 @@ export class Collection extends PrimaryEntity {
   @Column({ type: 'json', nullable: true })
   affiliation: CollectionAffiliate;
 
+  @Column({ type: 'json', nullable: true })
+  rewardSetting: any;
+
   postImages: string[] = [];
   shortLink: ShortLink;
   favorites: number;
