@@ -179,6 +179,17 @@ export class CollectionController {
     return collection;
   }
 
+  @Get(':id/token-ids')
+  @UseGuards(AuthGuard)
+  async getCollectionTokenIds(@Param('id') id: number) {
+    const tokenIds = await Nft.find({
+      where: { collectionId: +id },
+      select: ['tokenId'],
+    });
+
+    return tokenIds;
+  }
+
   @Post(':id/favorite')
   @UseGuards(AuthGuard)
   async favoriteCollection(@CurrentUser() user: User, @Param('id') id: string) {
